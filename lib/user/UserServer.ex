@@ -52,21 +52,19 @@ defmodule User.UserServer do
   end
 
   def handle_call({:auth_user, username, password}, _caller_pid, state) do
-    authenticated =
+    user =
       state
-      |> Enum.filter(&User.is_valid?(&1, username, password))
-      |> Enum.any?()
+      |> Enum.find(&User.is_valid?(&1, username, password))
 
     # Check if user is authenticated (exsits)
     # Return false if not
-    cond do
-      authenticated ->
-        {:reply, true, state}
-
-      true ->
+    case user do
+      nil ->
         Logger.error("Failed authentication: #{username}")
+        {:reply, nil, state}
 
-        {:reply, false, state}
+      user ->
+        {:reply, user, state}
     end
   end
 
@@ -92,26 +90,27 @@ defmodule User.UserServer do
   @doc """
   Check if user credentials are valid
   """
-  @spec auth_user?(binary(), binary()) :: boolean()
-  def auth_user?(username, password) when is_binary(username) and is_binary(password) do
+  def auth_user(username, password) when is_binary(username) and is_binary(password) do
     # Search locally
+    # callback returns either nil or the User
     callback = fn {pid, username, password} ->
       pid
       |> GenServer.call({:auth_user, username, password})
     end
 
-    cond do
-      callback.({Process.whereis(:user_server), username, password}) ->
-        true
-
-      # Search on other nodes
-      # TODO: Replicate data if found would probably be a good idea
-      true ->
+    case callback.({Process.whereis(:user_server), username, password}) do
+      # Search on other nodes as this node does not contain the data
+      nil ->
         Node.list()
-        |> Enum.any?(fn node ->
+        |> Enum.map(fn node ->
           pid = :rpc.call(node, Process, :whereis, [:user_server])
           callback.({pid, username, password})
         end)
+        |> Enum.find(&(&1 != nil))
+
+      # Simply return the user
+      user ->
+        user
     end
   end
 end

@@ -27,12 +27,18 @@ defmodule Router.Router do
     {:ok, body_raw, _conn} = Plug.Conn.read_body(conn)
     body = Poison.Parser.parse!(body_raw, %{keys: :atoms!})
 
-    IO.inspect(body)
-
-    result =
-      GenServer.call(Process.whereis(:user_server), {:auth_user, body[:email], body[:password]})
-
-    IO.inspect(result)
+    case User.UserServer.auth_user?(body[:username], body[:password]) do
+      true ->
+        {:ok, token, _plain} =
+          JwtConfig.generate_token(%{
+            "sub" =>
+              :crypto.hash(:sha, body[:username])
+              |> :crypto.bytes_to_integer()
+              |> Integer.digits()
+              |> Enum.map(fn digit -> <<digit + 100::utf8>> end)
+              |> Enum.join("")
+          })
+    end
 
     # TODO: Search user on all nodes. If they know the user, make sure all of them have the same value
     # If not, there is an error - log it
