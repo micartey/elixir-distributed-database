@@ -102,11 +102,10 @@ defmodule User.UserServer do
       # Search on other nodes as this node does not contain the data
       nil ->
         Node.list()
-        |> Enum.map(fn node ->
+        |> Enum.find(fn node ->
           pid = :rpc.call(node, Process, :whereis, [:user_server])
           callback.({pid, username, password})
         end)
-        |> Enum.find(&(&1 != nil))
 
       # Simply return the user
       user ->

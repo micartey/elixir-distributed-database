@@ -16,7 +16,7 @@ defmodule Router.Router do
   Authenticate the user based on the received payload:
 
   {
-    "email": "...",
+    "username": "...",
     "password:"..."
   }
 
@@ -27,7 +27,7 @@ defmodule Router.Router do
     {:ok, body_raw, _conn} = Plug.Conn.read_body(conn)
     body = Poison.Parser.parse!(body_raw, %{keys: :atoms!})
 
-    case User.UserServer.auth_user(body[:username], body[:password]) do
+    case UserServer.auth_user(body[:username], body[:password]) do
       nil ->
         send_resp(conn, 401, Poison.encode!(%{error: "User not found or incorrect password"}))
 
