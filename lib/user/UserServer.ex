@@ -12,22 +12,23 @@ defmodule User.UserServer do
   end
 
   def start_link(_) do
-    state = if File.exists?(@storage) do
-      retrieve_object(@storage)
-    else
-      []
-    end
+    state =
+      if File.exists?(@storage) do
+        retrieve_object(@storage)
+      else
+        []
+      end
 
-    IO.inspect state
+    IO.inspect(state)
 
     GenServer.start_link(__MODULE__, state, name: :user_server)
   end
 
   def handle_call({:create_user, %User{} = user}, _caller_pid, state) do
-
-    username_taken = state
-    |> Enum.filter(&(&1.username == user.username))
-    |> Enum.any?()
+    username_taken =
+      state
+      |> Enum.filter(&(&1.username == user.username))
+      |> Enum.any?()
 
     # Check if username is alreay taken and password is long enough.
     # Create user and append to state if conditions are meet
@@ -51,10 +52,10 @@ defmodule User.UserServer do
   end
 
   def handle_call({:auth_user, username, password}, _caller_pid, state) do
-
-    authenticated = state
-    |> Enum.filter(&(User.is_valid?(&1, username, password)))
-    |> Enum.any?()
+    authenticated =
+      state
+      |> Enum.filter(&User.is_valid?(&1, username, password))
+      |> Enum.any?()
 
     # Check if user is authenticated (exsits)
     # Return false if not
@@ -68,7 +69,6 @@ defmodule User.UserServer do
         {:reply, false, state}
     end
   end
-
 
   def create_user(username, password, permission) do
     user = User.new(username, password, permission)
@@ -101,7 +101,8 @@ defmodule User.UserServer do
     end
 
     cond do
-      callback.({Process.whereis(:user_server), username, password}) -> true
+      callback.({Process.whereis(:user_server), username, password}) ->
+        true
 
       # Search on other nodes
       # TODO: Replicate data if found would probably be a good idea

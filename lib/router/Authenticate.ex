@@ -20,7 +20,8 @@ defmodule Router.Authenticate do
   If token is invalid, return 401 with error
   """
   def authenticate_request(conn) do
-    with ["Bearer " <> token] <- get_req_header(conn, "authorization"), {:ok, claims} <- verify_token(token) do
+    with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
+         {:ok, claims} <- verify_token(token) do
       # Assign claims to the connection for downstream use
       # TODO: Figure out how to use this on downstream
       assign(conn, :current_user, claims)

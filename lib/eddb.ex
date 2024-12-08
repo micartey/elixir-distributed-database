@@ -12,10 +12,9 @@ defmodule Eddb do
       {Plug.Cowboy, scheme: :http, plug: Router, options: [port: 5342]}
     ]
 
-    Supervisor.start_link(children, [
+    Supervisor.start_link(children,
       strategy: :one_for_one,
       name: Eddb.Supervisor
-    ])
+    )
   end
-
 end

@@ -4,14 +4,13 @@ defmodule Router.Router do
   alias Router.Authenticate
   use Plug.Router
 
-  plug Plug.Logger
-  plug :match
+  plug(Plug.Logger)
+  plug(:match)
 
   # Apply the Authenticate plug to all routes except exempted ones
-  plug Authenticate
+  plug(Authenticate)
 
-  plug :dispatch
-
+  plug(:dispatch)
 
   @doc """
   Authenticate the user based on the received payload:
@@ -28,10 +27,12 @@ defmodule Router.Router do
     {:ok, body_raw, _conn} = Plug.Conn.read_body(conn)
     body = Poison.Parser.parse!(body_raw, %{keys: :atoms!})
 
-    IO.inspect body
+    IO.inspect(body)
 
-    result = GenServer.call(Process.whereis(:user_server), {:auth_user, body[:email], body[:password]})
-    IO.inspect result
+    result =
+      GenServer.call(Process.whereis(:user_server), {:auth_user, body[:email], body[:password]})
+
+    IO.inspect(result)
 
     # TODO: Search user on all nodes. If they know the user, make sure all of them have the same value
     # If not, there is an error - log it

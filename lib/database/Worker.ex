@@ -9,5 +9,4 @@ defmodule Database.Worker do
   def start_link({index}) do
     GenServer.start_link(__MODULE__, Map.new(), name: :"db_worker_#{index}")
   end
-
 end
