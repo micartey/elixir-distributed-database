@@ -12,6 +12,12 @@ defmodule Database.Worker do
     GenServer.start_link(__MODULE__, [], name: :"db_worker_#{index}")
   end
 
+  # TESTING:
+  # pid = Database.Database.get_worker("test")
+  # GenServer.call(pid, {:put, "topic", "key", "value"})
+  # GenServer.call(pid, {:get, "topic", "key"})
+
+  # TODO: Does not work for entries with changes (history > 1)
   def handle_call({:get, topic, key}, _caller_pid, state) do
     aggregated_topics = get_topic(state, topic)
 
@@ -24,27 +30,29 @@ defmodule Database.Worker do
       end)
       # Get the topic that contains the entry with the highest timestamp
       |> Enum.sort_by(
-        # Get topics sorted by timestamp
-        # 1. Filter only entries that have the searched key
-        # 2. Get history
-        # 3. Sort timestamps in descending order
-        # 4. Get first element (Element with highest timestamp)
         fn topic ->
-          topic.entries
-          |> Stream.filter(fn entry -> String.equivalent?(entry.key, key) end)
-          |> Stream.map(& &1.history)
-          |> Enum.sort_by(& &1.timestamp, :desc)
-          |> List.first()
+          history =
+            topic.entries
+            |> Stream.filter(fn entry -> String.equivalent?(entry.key, key) end)
+            |> Enum.map(& &1.history)
+            |> List.first()
+
+          history.timestamp
         end,
         :desc
       )
 
     IO.inspect(sorted_topics)
 
-    {:reply, nil, state}
+    entry =
+      sorted_topics
+      |> List.first()
+      |> Topic.get_entry(key)
+
+    {:reply, entry, state}
   end
 
-  def handle_call({:put, topic_name, %Entry{} = entry}, _caller_pid, state) do
+  def handle_call({:put, topic_name, key, data}, _caller_pid, state) do
     topic =
       case get_topic_local(state, topic_name) do
         nil ->
@@ -54,14 +62,26 @@ defmodule Database.Worker do
           topic
       end
 
-    # TODO: Implement
-    cond do
-      Topic.contains_entry_with_key?(topic, entry.key) ->
-        nil
+    entry =
+      cond do
+        # Entry is present in topic, we need to append our data there
+        Topic.contains_entry_with_key?(topic, key) ->
+          topic.entries
+          |> Enum.find(&String.equivalent?(key, &1.key))
+          |> Entry.update(data)
 
-      true ->
-        nil
-    end
+        # Default: Topic does not yet contain the entry
+        true ->
+          Entry.new(key, data)
+      end
+
+    new_topic = Topic.replace_entry(topic, entry)
+
+    new_state =
+      state
+      |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
+
+    {:reply, entry, [new_topic | new_state]}
   end
 
   def get_topic(state, topic) do
