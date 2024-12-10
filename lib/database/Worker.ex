@@ -88,6 +88,20 @@ defmodule Database.Worker do
     {:reply, entry, [new_topic | new_state]}
   end
 
+  def handle_call({:put, topic_name, key, old_data, data}, caller_pid, state) do
+    {_, result, _} = handle_call({:get, topic_name, key}, caller_pid, state)
+
+    cond do
+      List.first(result.history).data == old_data ->
+        handle_call({:put, topic_name, key, data}, caller_pid, state)
+        {:reply, :ok, state}
+
+      true ->
+        # The data has changed
+        {:reply, :fail, state}
+    end
+  end
+
   def get_topic(state, topic) do
     db_worker_index = Database.Database.get_worker_index(self())
 
