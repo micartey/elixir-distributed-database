@@ -35,6 +35,9 @@ defmodule Database.Worker do
             topic.entries
             |> Stream.filter(fn entry -> String.equivalent?(entry.key, key) end)
             |> Enum.map(& &1.history)
+            # Get the first matching history array
+            |> List.first()
+            # Get the first element from history array
             |> List.first()
 
           history.timestamp
