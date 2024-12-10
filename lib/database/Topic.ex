@@ -7,4 +7,9 @@ defmodule Database.Topic do
       topic: topic
     }
   end
+
+  def contains_entry_with_key?(%Topic{entries: entries}, key) do
+    entries
+    |> Enum.any?(&String.equivalent?(&1.key, key))
+  end
 end
