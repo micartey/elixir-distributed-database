@@ -12,12 +12,17 @@ defmodule Database.Worker do
     GenServer.start_link(__MODULE__, [], name: :"db_worker_#{index}")
   end
 
+  def handle_call({:get_state}, _caller_pid, state) do
+    IO.puts("Get State")
+
+    {:reply, state, state}
+  end
+
   # TESTING:
   # pid = Database.Database.get_worker("test")
   # GenServer.call(pid, {:put, "topic", "key", "value"})
   # GenServer.call(pid, {:get, "topic", "key"})
 
-  # TODO: Does not work for entries with changes (history > 1)
   def handle_call({:get, topic, key}, _caller_pid, state) do
     aggregated_topics = get_topic(state, topic)
 
@@ -91,7 +96,8 @@ defmodule Database.Worker do
     topics =
       Node.list()
       |> Enum.map(fn node ->
-        :rpc.call(node, Database.Worker, :get_topic_local, [state, topic])
+        remote_state = :rpc.call(node, Database.Worker, :get_state, [])
+        :rpc.call(node, Database.Worker, :get_topic_local, [remote_state, topic])
       end)
       |> Enum.to_list()
 
@@ -101,7 +107,7 @@ defmodule Database.Worker do
     |> Enum.to_list()
   end
 
-  defp get_topic_local(state, topic) do
+  def get_topic_local(state, topic) do
     state
     |> Enum.find(&String.equivalent?(topic, &1.topic))
   end
