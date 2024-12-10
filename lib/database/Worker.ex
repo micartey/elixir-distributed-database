@@ -13,8 +13,6 @@ defmodule Database.Worker do
   end
 
   def handle_call({:get_state}, _caller_pid, state) do
-    IO.puts("Get State")
-
     {:reply, state, state}
   end
 
@@ -49,8 +47,6 @@ defmodule Database.Worker do
         end,
         :desc
       )
-
-    IO.inspect(sorted_topics)
 
     entry =
       sorted_topics
@@ -93,10 +89,13 @@ defmodule Database.Worker do
   end
 
   def get_topic(state, topic) do
+    db_worker_index = Database.Database.get_worker_index(self())
+
     topics =
       Node.list()
       |> Enum.map(fn node ->
-        remote_state = :rpc.call(node, Database.Worker, :get_state, [])
+        remote_worker_pid = :rpc.call(node, Process, :whereis, [:"db_worker_#{db_worker_index}"])
+        remote_state = :rpc.call(node, GenServer, :call, [remote_worker_pid, {:get_state}])
         :rpc.call(node, Database.Worker, :get_topic_local, [remote_state, topic])
       end)
       |> Enum.to_list()

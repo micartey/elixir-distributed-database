@@ -31,4 +31,21 @@ defmodule Database.Database do
     index = :erlang.phash2(key, @pool_size) + 1
     Process.whereis(:"db_worker_#{index}")
   end
+
+  def get_worker_index(pid) do
+    get_worker_index_itr(pid, 0)
+  end
+
+  defp get_worker_index_itr(pid, index) do
+    cond do
+      index > @pool_size ->
+        nil
+
+      Process.whereis(:"db_worker_#{index}") == pid ->
+        index
+
+      true ->
+        get_worker_index_itr(pid, index + 1)
+    end
+  end
 end
