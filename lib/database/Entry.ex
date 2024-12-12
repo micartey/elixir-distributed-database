@@ -9,6 +9,28 @@ defmodule Database.Entry do
               }
             ]
 
+  def get_keys(entries) do
+    entries
+    |> Stream.map(& &1.key)
+    |> Enum.uniq()
+  end
+
+  def combine(entries, key) do
+    history =
+      entries
+      |> Stream.filter(&(&1.key == key))
+      |> Enum.map(& &1.history)
+      |> Stream.flat_map(& &1)
+      |> Stream.uniq_by(fn %{timestamp: timestamp, data: _data} -> timestamp end)
+      |> Enum.sort_by(fn %{timestamp: timestamp, data: _data} -> timestamp end, :desc)
+      |> Enum.to_list()
+
+    %Entry{
+      key: key,
+      history: history
+    }
+  end
+
   def new(key, data) when is_bitstring(key) do
     %Entry{
       key: key,

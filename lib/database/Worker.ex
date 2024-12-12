@@ -16,11 +16,6 @@ defmodule Database.Worker do
     {:reply, state, state}
   end
 
-  # TESTING:
-  # pid = Database.Database.get_worker("test")
-  # GenServer.call(pid, {:put, "topic", "key", "value"})
-  # GenServer.call(pid, {:get, "topic", "key"})
-
   def handle_call({:get, topic, key}, _caller_pid, state) do
     aggregated_topics = get_topic(state, topic)
 
@@ -51,6 +46,14 @@ defmodule Database.Worker do
     entry =
       sorted_topics
       |> List.first()
+      |> Topic.get_entry(key)
+
+    {:reply, entry, state}
+  end
+
+  def handle_call({:get_local, topic, key}, _caller_pid, state) do
+    entry =
+      get_topic_local(state, topic)
       |> Topic.get_entry(key)
 
     {:reply, entry, state}
@@ -100,6 +103,33 @@ defmodule Database.Worker do
         # The data has changed
         {:reply, :fail, state}
     end
+  end
+
+  def handle_call({:sync, topic_name}, _caller_pid, state) do
+    topics = get_topic(state, topic_name)
+
+    entries =
+      topics
+      |> Enum.map(fn topic ->
+        Entry.get_keys(topic.entries)
+        |> Enum.map(fn key ->
+          Entry.combine(topic.entries, key)
+        end)
+      end)
+
+    filtered_state =
+      state
+      |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
+
+    new_state = [
+      %Topic{
+        topic: topic_name,
+        entries: entries
+      },
+      filtered_state
+    ]
+
+    {:reply, new_state, new_state}
   end
 
   def get_topic(state, topic) do

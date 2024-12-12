@@ -4,12 +4,22 @@ defmodule EddbTest do
 
   test "store and retrive data" do
     pid = Database.Database.get_worker("test")
+    # GenServer.call(pid, {:sync, "topic"})
+    GenServer.call(pid, {:get, "topic", "key"})
+
     GenServer.call(pid, {:put, "topic", "key", "value1"})
     GenServer.call(pid, {:put, "topic", "key", "value2"})
     GenServer.call(pid, {:put, "topic", "key2", "value3"})
 
     GenServer.call(pid, {:get, "topic", "key"})
     GenServer.call(pid, {:get, "topic", "key2"})
+  end
+
+  test "store and retrive data locally" do
+    pid = Database.Database.get_worker("test")
+    GenServer.call(pid, {:put, "topic", "key", "value1"})
+
+    assert GenServer.call(pid, {:get_local, "topic", "key"})
   end
 
   test "fail lock" do
