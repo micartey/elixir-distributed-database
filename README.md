@@ -29,7 +29,7 @@ Data with the same key in the same topic will be overwritten, but the old data w
 However, you can specify the expected current state and **only** if the expection matches with the data on the node, the new data will be stored.
 
 > [!NOTE]
-> In some cases you want the data to be expected on all nodes, this can currently only be somewhat archived by calling the `sync` functiojn before
+> In some cases you want the data to be expected on all nodes, this can currently only be somewhat archived by calling the `sync` function before
 
 ### sync
 
