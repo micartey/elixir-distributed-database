@@ -47,6 +47,24 @@ defmodule Router.Router do
     end
   end
 
+  @doc """
+  Get the value of a key from a topic.
+  The URL is strctured as follows: /get?topic=...&key=...
+  """
+  get "/get" do
+    param = fetch_query_params(conn).params
+
+    # ?topic=...&key=...
+    topic = param["topic"]
+    key = param["key"]
+
+    result =
+      Database.Database.get_worker(topic)
+      |> GenServer.call({:get, topic, key})
+
+    send_resp(conn, 200, Poison.encode!(result))
+  end
+
   match _ do
     send_resp(conn, 404, "oops")
   end
