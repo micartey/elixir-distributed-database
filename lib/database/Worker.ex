@@ -1,6 +1,8 @@
 defmodule Database.Worker do
+  alias Utilities.Serialize
   alias Database.Topic
   alias Database.Entry
+  alias Utilities.Serialize
   require Logger
   use GenServer, restart: :permanent
 
@@ -88,6 +90,9 @@ defmodule Database.Worker do
       state
       |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
 
+    # Store data on disc
+    Utilities.Serialize.store_object(topic_name <> ".bin", new_topic)
+
     {:reply, entry, [new_topic | new_state]}
   end
 
@@ -132,6 +137,16 @@ defmodule Database.Worker do
     {:reply, new_state, new_state}
   end
 
+  @moduledoc """
+  Find a topic not just locally, but on all nodes.
+  This works as follows:
+
+    1. Get all connected nodes
+    2. Get the pid of the equivalent workers on the other nodes
+    3. Call the get_topic_local method on the distante nodes
+    4. Aggregate the data to a list
+    5. Merge the list with local data and drop all *nil* values
+  """
   def get_topic(state, topic) do
     db_worker_index = Database.Database.get_worker_index(self())
 
@@ -150,8 +165,28 @@ defmodule Database.Worker do
     |> Enum.to_list()
   end
 
+  @moduledoc """
+  Find a topic by name in current state.
+  If there is no match in state, try to retrive data from disc.
+  If there is no data on disc, return *nil*
+  """
   def get_topic_local(state, topic) do
-    state
-    |> Enum.find(&String.equivalent?(topic, &1.topic))
+    result =
+      state
+      |> Enum.find(&String.equivalent?(topic, &1.topic))
+
+    cond do
+      # We found a topic in the state - Data has already been loaded from disc
+      result ->
+        result
+
+      # We did not find a topic in the state - Load data from disc
+      File.exists?(topic <> ".bin") ->
+        Utilities.Serialize.retrieve_object(topic <> ".bin")
+
+      # We did not find a topic in the state - No data on disc
+      true ->
+        nil
+    end
   end
 end
