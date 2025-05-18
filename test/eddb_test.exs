@@ -4,12 +4,11 @@ defmodule EddbTest do
 
   test "store and retrive data" do
     pid = Database.Database.get_worker("test")
-    # GenServer.call(pid, {:sync, "topic"})
     GenServer.call(pid, {:get, "topic", "key"})
 
     GenServer.call(pid, {:put, "topic", "key", "value1"})
     GenServer.call(pid, {:put, "topic", "key", "value2"})
-    GenServer.call(pid, {:put, "topic", "key2", "value3"})
+    GenServer.call(pid, {:put, "toapic", "key2", "value3"})
 
     GenServer.call(pid, {:get, "topic", "key"})
     GenServer.call(pid, {:get, "topic", "key2"})
@@ -19,7 +18,16 @@ defmodule EddbTest do
     pid = Database.Database.get_worker("test")
     GenServer.call(pid, {:put, "topic", "key", "value1"})
 
-    assert GenServer.call(pid, {:get_local, "topic", "key"})
+    entry = GenServer.call(pid, {:get_local, "topic", "key"})
+
+    # Could use List.first or hd/1 as well
+    entry_data =
+      case entry.history do
+        [] -> nil
+        [head | tail] -> head.data
+      end
+
+    assert entry_data == "value1"
   end
 
   test "fail lock" do
