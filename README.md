@@ -1,6 +1,10 @@
 # Eddb
 
-`eddb` is a distributed (unstructured) database
+<div align="center">
+  <img src="https://img.shields.io/badge/elixir-%234B275F.svg?style=for-the-badge&logo=elixir&logoColor=white" />
+</div>
+
+`eddb` is a distributed database for unstructured data
 
 ## Functions
 

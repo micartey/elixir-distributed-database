@@ -7,7 +7,31 @@ defmodule Eddb.MixProject do
       version: "0.1.0",
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      description: description(),
+      package: package(),
+      deps: deps(),
+
+      name: "Eddb",
+      source_url: "https://github.com/micartey/elixir-distributed-database",
+      docs: [
+        main: "readme",
+        source_ref: "master",
+        extras: ["README.md", "LICENSE"]
+      ]
+    ]
+  end
+
+  defp description() do
+    "Distirbuted database for unstructured data"
+  end
+
+
+  defp package() do
+    [
+      name: "eddb",
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE*),
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/micartey/elixir-distributed-database"}
     ]
   end
 
@@ -26,7 +50,8 @@ defmodule Eddb.MixProject do
       {:poison, "~> 6.0"},
       {:cluster_bot, "~> 0.2.0"},
       {:yajwt, "~> 1.0"},
-      {:joken, "~> 2.6"}
+      {:joken, "~> 2.6"},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
     ]
   end
 end
