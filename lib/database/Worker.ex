@@ -2,6 +2,8 @@ defmodule Database.Worker do
   alias Utilities.Serialize
   alias Database.Topic
   alias Database.Entry
+  alias Utilities.Serialize
+  import Serialize
   require Logger
   use GenServer, restart: :permanent
 
@@ -90,7 +92,7 @@ defmodule Database.Worker do
       |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
 
     # Store data on disc
-    Utilities.Serialize.store_object("topic_" <> topic <> ".bin", new_topic)
+    store_object("topic_" <> topic_name <> ".bin", new_topic)
 
     {:reply, entry, [new_topic | new_state]}
   end
@@ -180,7 +182,7 @@ defmodule Database.Worker do
 
       # We did not find a topic in the state - Load data from disc
       File.exists?("topic_" <> topic <> ".bin") ->
-        Utilities.Serialize.retrieve_object("topic_" <> topic <> ".bin")
+        retrieve_object("topic_" <> topic <> ".bin")
 
       # We did not find a topic in the state - No data on disc
       true ->
