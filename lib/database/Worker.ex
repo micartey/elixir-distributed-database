@@ -20,7 +20,7 @@ defmodule Database.Worker do
   end
 
   def handle_call({:get, topic, key}, _caller_pid, state) do
-    aggregated_topics = get_topic(state, topic)
+    aggregated_topics = get_topics(state, topic)
 
     sorted_topics =
       aggregated_topics
@@ -112,7 +112,7 @@ defmodule Database.Worker do
   end
 
   def handle_call({:sync, topic_name}, _caller_pid, state) do
-    topics = get_topic(state, topic_name)
+    topics = get_topics(state, topic_name)
 
     entries =
       topics
@@ -122,25 +122,17 @@ defmodule Database.Worker do
           Entry.combine(topic.entries, key)
         end)
       end)
+      |> List.flatten()
 
     merged_topic = %Topic{
       topic: topic_name,
       entries: entries
     };
 
-    filtered_topics =
-      state
-      |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
-
-    new_state = [
-      merged_topic,
-      filtered_topics
-    ]
-
     # Store data on disc
     store_object("topic_" <> topic_name <> ".bin", merged_topic)
 
-    {:reply, new_state, new_state}
+    {:reply, merged_topic, [merged_topic | state]}
   end
 
   @moduledoc """
@@ -153,7 +145,7 @@ defmodule Database.Worker do
     4. Aggregate the data to a list
     5. Merge the list with local data and drop all *nil* values
   """
-  def get_topic(state, topic) do
+  def get_topics(state, topic) do
     db_worker_index = Database.Database.get_worker_index(self())
 
     topics =

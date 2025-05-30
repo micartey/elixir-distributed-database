@@ -27,4 +27,8 @@ defmodule Database.Topic do
     entries
     |> Enum.find(&String.equivalent?(&1.key, key))
   end
+
+  def get_entry(nil, key) do
+    nil
+  end
 end

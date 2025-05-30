@@ -16,6 +16,8 @@ defmodule Database.Entry do
   end
 
   def combine(entries, key) do
+    # TODO: This works to some degree... There is currently an "issue" where history entries
+    #   with the same entries will be filtered out
     history =
       entries
       |> Stream.filter(&(&1.key == key))
