@@ -17,15 +17,30 @@ After finding the newest change, the data will be shared.
 > This has no affect on the data on the current node.
 > If you want the data to be merged, call the `sync` function
 
+```elixir
+Database.Database.get_worker("test")
+|> GenServer.call({:get, "topic", "key"})
+```
+
 ### get_local
 
 `get_local` will only retrive data from the current node.
 Thus, this operation is significantly faster.
 
+```elixir
+Database.Database.get_worker("test")
+|> GenServer.call({:get_local, "topic", "key"})
+```
+
 ### put
 
 `put` will store the data on the current node.
 Data with the same key in the same topic will be overwritten, but the old data will be kept in the history.
+
+```elixir
+Database.Database.get_worker("test")
+|> GenServer.call({:put, "topic", "key", "value"})
+```
 
 ### put (With optimistic locking)
 
@@ -35,7 +50,17 @@ However, you can specify the expected current state and **only** if the expectio
 > [!NOTE]
 > In some cases you want the data to be expected on all nodes, this can currently only be somewhat archived by calling the `sync` function before
 
+```elixir
+Database.Database.get_worker("test")
+|> GenServer.call({:put, "topic", "key", "currentValue", "newValue"})
+```
+
 ### sync
 
 `sync` will merge the data from all neighbors.
 The data with the newest timestamp is considered the current state.
+
+```elixir
+Database.Database.get_worker("test")
+|> GenServer.call({:sync, "topic"})
+```
