@@ -123,17 +123,22 @@ defmodule Database.Worker do
         end)
       end)
 
-    filtered_state =
+    merged_topic = %Topic{
+      topic: topic_name,
+      entries: entries
+    };
+
+    filtered_topics =
       state
       |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
 
     new_state = [
-      %Topic{
-        topic: topic_name,
-        entries: entries
-      },
-      filtered_state
+      merged_topic,
+      filtered_topics
     ]
+
+    # Store data on disc
+    store_object("topic_" <> topic_name <> ".bin", merged_topic)
 
     {:reply, new_state, new_state}
   end
