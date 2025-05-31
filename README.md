@@ -2,8 +2,10 @@
 
 <div align="center">
   <img src="https://img.shields.io/badge/Written%20in-elixir-%238238ab?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Hex.pm-eddb-%23f1413d?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Hex.pm-eddb-%235764c9?style=for-the-badge" />
 </div>
+
+<br />
 
 `eddb` is a distributed database for unstructured data
 
@@ -68,8 +70,10 @@ Database.Database.get_worker("worker1")
 
 ### delete
 
-`delete` will delete data *locally*.
-This function is currently WIP and will eventually delete data globally.
+`delete` will delete data globally, however, this does only garantee that data is gone if all nodes are fully connected.
+Otherwise, a node that still has the data will present it on every `get`-request (not `get_local`).
+
+A better solution would be set the value to nil or any other placeholder value as the newer timestamp would make it the source-of-truth.
 
 ```elixir
 Database.Database.get_worker("worker1")
