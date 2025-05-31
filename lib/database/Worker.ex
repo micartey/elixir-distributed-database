@@ -92,7 +92,7 @@ defmodule Database.Worker do
       |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
 
     # Store data on disc
-    store_object("topic_" <> topic_name <> ".bin", new_topic)
+    store_object("topic_" <> topic_name <> ".json", new_topic)
 
     {:reply, entry, [new_topic | new_state]}
   end
@@ -130,7 +130,7 @@ defmodule Database.Worker do
     };
 
     # Store data on disc
-    store_object("topic_" <> topic_name <> ".bin", merged_topic)
+    store_object("topic_" <> topic_name <> ".json", merged_topic)
 
     {:reply, merged_topic, [merged_topic | state]}
   end
@@ -178,8 +178,8 @@ defmodule Database.Worker do
         result
 
       # We did not find a topic in the state - Load data from disc
-      File.exists?("topic_" <> topic <> ".bin") ->
-        retrieve_object("topic_" <> topic <> ".bin")
+      File.exists?("topic_" <> topic <> ".json") ->
+        retrieve_object("topic_" <> topic <> ".json")
 
       # We did not find a topic in the state - No data on disc
       true ->
