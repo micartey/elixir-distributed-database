@@ -112,20 +112,27 @@ defmodule Database.Worker do
   end
 
   def handle_call({:delete, topic_name, key}, _caller_pid, state) do
-    {_, _, merge_state} = handle_call({:sync, topic_name}, nil, state)
-    topic = get_topic_local(merge_state, topic_name)
+    topic = get_topic_local(state, topic_name)
 
-    modified_topic = Topic.delete_entry_by_key(topic, key)
+    cond do
+      # We know the topic
+      topic ->
+        modified_topic = Topic.delete_entry_by_key(topic, key)
 
-    # Store data on disc
-    store_object("topic_" <> topic_name <> ".json", modified_topic)
+        # Store data on disc
+        store_object("topic_" <> topic_name <> ".json", modified_topic)
 
-    # State withouth the topic that has been modified
-    new_state =
-      state
-      |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
+        # State withouth the topic that has been modified
+        new_state =
+          state
+          |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
 
-    {:reply, modified_topic, [modified_topic | new_state]}
+        {:reply, modified_topic, [modified_topic | new_state]}
+
+      # we don't know the topic so we will ignore the deletion
+      true ->
+        {:reply, nil, state}
+    end
   end
 
   def handle_call({:sync, topic_name}, _caller_pid, state) do

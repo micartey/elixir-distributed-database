@@ -51,7 +51,7 @@ Database.Database.get_worker("worker1")
 However, you can specify the expected current state and **only** if the expection matches with the data on the node, the new data will be stored.
 
 > [!NOTE]
-> In some cases you want the data to be expected on all nodes, this can currently only be somewhat archived by calling the `sync` function before
+> Contrary to the normal put operation will this operation check the expected data on all nodes and compare it with the newest data
 
 ```elixir
 Database.Database.get_worker("worker1")
