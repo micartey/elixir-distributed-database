@@ -111,31 +111,66 @@ defmodule Database.Worker do
     end
   end
 
+  def handle_call({:delete, topic_name, key}, caller_pid, state) do
+    {_, _, merge_state} = handle_call({:sync, topic_name}, caller_pid, state)
+    {_, topic, new_state} = handle_call({:delete_local, topic_name, key}, caller_pid, merge_state)
+
+    db_worker_index = Database.Database.get_worker_index(self())
+    Node.list()
+    |> Enum.map(fn node ->
+      remote_worker_pid = :rpc.call(node, Process, :whereis, [:"db_worker_#{db_worker_index}"])
+      :rpc.call(node, GenServer, :call, [remote_worker_pid, {:delete_local, topic_name, key}])
+    end)
+
+    {:reply, topic, new_state}
+  end
+
+  def handle_call({:delete_local, topic_name, key}, caller_pid, state) do
+    topic = get_topic_local(state, topic_name)
+
+    modified_topic = Topic.delete_entry_by_key(topic, key)
+
+    # Store data on disc
+    store_object("topic_" <> topic_name <> ".json", modified_topic)
+
+    # State withouth the topic that has been modified
+    new_state =
+      state
+      |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
+
+    {:reply, modified_topic, [modified_topic | new_state]}
+  end
+
   def handle_call({:sync, topic_name}, _caller_pid, state) do
     topics = get_topics(state, topic_name)
 
     entries =
       topics
-      |> Enum.map(fn topic ->
-        Entry.get_keys(topic.entries)
-        |> Enum.map(fn key ->
-          Entry.combine(topic.entries, key)
-        end)
-      end)
+      |> Enum.map(fn topic -> topic.entries end)
       |> List.flatten()
+      # At this point we have a list of entries which might contain duplicated keys
+      |> Entry.combine()
+
+    # entries is an array with an array of all entries of a node (|node| amount of entries)
+    # We need a strategy to fold them while matching their key
 
     merged_topic = %Topic{
       topic: topic_name,
       entries: entries
     };
 
+    # State withouth the topic that has been modified
+    new_state =
+      state
+      |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
+
     # Store data on disc
     store_object("topic_" <> topic_name <> ".json", merged_topic)
 
-    {:reply, merged_topic, [merged_topic | state]}
+    {:reply, merged_topic, [merged_topic | new_state]}
   end
 
-  @moduledoc """
+  @doc """
   Find a topic not just locally, but on all nodes.
   This works as follows:
 
@@ -162,7 +197,7 @@ defmodule Database.Worker do
     |> Enum.to_list()
   end
 
-  @moduledoc """
+  @doc """
   Find a topic by name in current state.
   If there is no match in state, try to retrive data from disc.
   If there is no data on disc, return *nil*

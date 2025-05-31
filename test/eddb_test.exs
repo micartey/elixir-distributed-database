@@ -41,4 +41,16 @@ defmodule EddbTest do
     GenServer.call(pid, {:put, "topic", "key", "value2"})
     assert GenServer.call(pid, {:put, "topic", "key", "value2", "value2"}) == :ok
   end
+
+  test "delete data" do
+    pid = Database.Database.get_worker("test")
+    GenServer.call(pid, {:put, "topic", "key", "test"})
+    data = GenServer.call(pid, {:get, "topic", "key"})
+    assert data != nil
+
+    GenServer.call(pid, {:delete, "topic", "key"})
+
+    entry = GenServer.call(pid, {:get_local, "topic", "key"})
+    assert entry == nil
+  end
 end

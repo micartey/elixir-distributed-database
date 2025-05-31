@@ -19,32 +19,30 @@ end
 
 defmodule Poison.DecodeWithStruct do
   def decode!(json_string) do
-    data_map = Poison.decode!(json_string)
+    data_map = Poison.decode!(json_string, keys: :atoms)
     to_struct(data_map)
   end
 
-  def to_struct(%{"__struct__" => module_name_str} = map_with_string_keys) do
+  def to_struct(%{:__struct__ => module_name_str} = map_with_string_keys) do
     module = String.to_atom("Elixir." <> module_name_str)
 
     map_with_atom_keys_and_processed_values =
       map_with_string_keys
-      |> Enum.map(fn {key_str, value} ->
-        atom_key = String.to_atom(key_str)
-
+      |> Enum.map(fn {key, value} ->
         processed_value =
           cond do
             # Check if 'value' is a map AND it contains the "__struct__" string key
-            is_map(value) and Map.has_key?(value, "__struct__") ->
-              to_struct(value) # Recursively call to_struct
+            is_map(value) and Map.has_key?(value, :__struct__) ->
+              to_struct(value)
 
             is_list(value) ->
-              Enum.map(value, &maybe_to_struct/1) # Process list elements
+              Enum.map(value, &maybe_to_struct/1)
 
             true ->
-              value # Otherwise, use the value as is
+              value
           end
 
-        {atom_key, processed_value}
+        {key, processed_value}
       end)
       |> Enum.into(%{})
 
@@ -56,7 +54,7 @@ defmodule Poison.DecodeWithStruct do
   def to_struct(other), do: other
 
   # Helper for list processing
-  defp maybe_to_struct(%{"__struct__" => _} = item_map), do: to_struct(item_map)
+  defp maybe_to_struct(%{:__struct__ => _} = item_map), do: to_struct(item_map)
   defp maybe_to_struct(item), do: item
 end
 

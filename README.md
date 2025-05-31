@@ -1,7 +1,8 @@
 # Eddb
 
 <div align="center">
-  <img src="https://img.shields.io/badge/elixir-%234B275F.svg?style=for-the-badge&logo=elixir&logoColor=white" />
+  <img src="https://img.shields.io/badge/Written%20in-elixir-%238238ab?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Hex.pm-eddb-%23f1413d?style=for-the-badge" />
 </div>
 
 `eddb` is a distributed database for unstructured data
@@ -63,4 +64,14 @@ The data with the newest timestamp is considered the current state.
 ```elixir
 Database.Database.get_worker("worker1")
 |> GenServer.call({:sync, "topic"})
+```
+
+### delete
+
+`delete` will delete data *locally*.
+This function is currently WIP and will eventually delete data globally.
+
+```elixir
+Database.Database.get_worker("worker1")
+|> GenServer.call({:delete, "topic", "key"})
 ```

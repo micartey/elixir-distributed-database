@@ -15,12 +15,21 @@ defmodule Database.Topic do
   end
 
   def replace_entry(%Topic{entries: entries} = topic, %Entry{key: key} = entry) do
+    modified_topic = delete_entry_by_key(topic, key)
+    %Topic{topic |
+      entries: [entry | modified_topic.entries]
+    }
+  end
+
+  def delete_entry_by_key(%Topic{entries: entries} = topic, key) do
     filtered_entries =
       entries
       |> Enum.filter(&(!String.equivalent?(&1.key, key)))
       |> Enum.to_list()
 
-    %Topic{topic | entries: [entry | filtered_entries]}
+    %Topic{topic |
+      entries: filtered_entries
+    }
   end
 
   def get_entry(%Topic{entries: entries}, key) do
