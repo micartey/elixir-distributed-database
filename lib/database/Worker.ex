@@ -102,7 +102,7 @@ defmodule Database.Worker do
 
     cond do
       List.first(result.history).data == old_data ->
-        handle_call({:put, topic_name, key, data}, caller_pid, state)
+        handle_call({:put, topic_name, key, data}, nil, state)
         {:reply, :ok, state}
 
       true ->
