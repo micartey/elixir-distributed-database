@@ -97,8 +97,8 @@ defmodule Database.Worker do
     {:reply, entry, [new_topic | new_state]}
   end
 
-  def handle_call({:put, topic_name, key, old_data, data}, caller_pid, state) do
-    {_, result, _} = handle_call({:get, topic_name, key}, caller_pid, state)
+  def handle_call({:put, topic_name, key, old_data, data}, _caller_pid, state) do
+    {_, result, _} = handle_call({:get, topic_name, key}, nil, state)
 
     cond do
       List.first(result.history).data == old_data ->
@@ -111,22 +111,9 @@ defmodule Database.Worker do
     end
   end
 
-  def handle_call({:delete, topic_name, key}, caller_pid, state) do
-    {_, _, merge_state} = handle_call({:sync, topic_name}, caller_pid, state)
-    {_, topic, new_state} = handle_call({:delete_local, topic_name, key}, caller_pid, merge_state)
-
-    db_worker_index = Database.Database.get_worker_index(self())
-    Node.list()
-    |> Enum.map(fn node ->
-      remote_worker_pid = :rpc.call(node, Process, :whereis, [:"db_worker_#{db_worker_index}"])
-      :rpc.call(node, GenServer, :call, [remote_worker_pid, {:delete_local, topic_name, key}])
-    end)
-
-    {:reply, topic, new_state}
-  end
-
-  def handle_call({:delete_local, topic_name, key}, caller_pid, state) do
-    topic = get_topic_local(state, topic_name)
+  def handle_call({:delete, topic_name, key}, _caller_pid, state) do
+    {_, _, merge_state} = handle_call({:sync, topic_name}, nil, state)
+    topic = get_topic_local(merge_state, topic_name)
 
     modified_topic = Topic.delete_entry_by_key(topic, key)
 

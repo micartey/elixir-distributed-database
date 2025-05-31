@@ -70,8 +70,7 @@ Database.Database.get_worker("worker1")
 
 ### delete
 
-`delete` will delete data globally, however, this does only garantee that data is gone if all nodes are fully connected.
-Otherwise, a node that still has the data will present it on every `get`-request (not `get_local`).
+`delete` will delete data **locally**.
 
 A better solution would be setting the value to nil or any other placeholder value as the newer timestamp would make it the source-of-truth.
 
