@@ -14,7 +14,7 @@
 ### get
 
 `get` will retrive the data from all neighbors and check which update is the newest.
-After finding the newest change, the data will be shared.
+Only the newest data will be returned.
 
 > [!NOTE]
 > This has no affect on the data on the current node.
@@ -27,7 +27,7 @@ Database.Database.get_worker("worker1")
 
 ### get_local
 
-`get_local` will only retrive data from the current node.
+`get_local` will only retrive the newest data from the current node.
 Thus, this operation is significantly faster.
 
 ```elixir
@@ -73,7 +73,7 @@ Database.Database.get_worker("worker1")
 `delete` will delete data globally, however, this does only garantee that data is gone if all nodes are fully connected.
 Otherwise, a node that still has the data will present it on every `get`-request (not `get_local`).
 
-A better solution would be set the value to nil or any other placeholder value as the newer timestamp would make it the source-of-truth.
+A better solution would be setting the value to nil or any other placeholder value as the newer timestamp would make it the source-of-truth.
 
 ```elixir
 Database.Database.get_worker("worker1")

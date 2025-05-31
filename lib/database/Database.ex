@@ -32,6 +32,10 @@ defmodule Database.Database do
     Process.whereis(:"db_worker_#{index}")
   end
 
+  def get_remote_worker(node, key) when is_bitstring(key) do
+    :rpc.call(node, Database.Database, :get_worker, [key])
+  end
+
   def get_worker_index(pid) do
     get_worker_index_itr(pid, 0)
   end
