@@ -9,7 +9,7 @@ defmodule Eddb do
       Database,
       ClusterMonitor,
       UserServer,
-      # {Plug.Cowboy, scheme: :http, plug: Router, options: [port: 5342]}
+      {Plug.Cowboy, scheme: :http, plug: Router, options: [port: 5342]}
     ]
 
     Supervisor.start_link(children,

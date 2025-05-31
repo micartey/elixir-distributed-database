@@ -1,6 +1,6 @@
 defmodule Utilities.Serialize do
 
-  def store_object(file_path, %{} = object) do
+  def store_object(file_path, object) do
     json_string = Poison.encode!(object)
     File.write!(file_path, json_string)
   end

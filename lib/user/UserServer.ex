@@ -5,7 +5,7 @@ defmodule User.UserServer do
   import Serialize
   use GenServer, restart: :permanent
 
-  @storage "users.bin"
+  @storage "users.json"
 
   def init(init_arg) do
     {:ok, init_arg}
