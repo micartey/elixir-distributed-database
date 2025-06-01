@@ -77,4 +77,12 @@ A better solution would be setting the value to nil or any other placeholder val
 ```elixir
 Database.Database.get_worker("worker1")
 |> GenServer.call({:delete, "topic", "key"})
+
+# Or use something like this to delete the data "globally":
+
+Node.list()
+|> Enum.map(fn node ->
+  Database.Database.get_remote_worker(node, "worker1")
+  |> GenServer.call({:delete, "topic", "key"})
+end
 ```

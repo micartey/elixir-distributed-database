@@ -112,9 +112,11 @@ defmodule Database.Worker do
   end
 
   def handle_call({:delete, topic_name, key}, _caller_pid, state) do
-    topic = get_topic_local(state, topic_name)
+    case get_topic_local(state, topic_name) do
+      # We don't know the topic
+      nil ->
+        {:reply, nil, state}
 
-    cond do
       # We know the topic
       topic ->
         modified_topic = Topic.delete_entry_by_key(topic, key)
@@ -128,10 +130,6 @@ defmodule Database.Worker do
           |> Enum.filter(&(!String.equivalent?(&1.topic, topic_name)))
 
         {:reply, modified_topic, [modified_topic | new_state]}
-
-      # we don't know the topic so we will ignore the deletion
-      true ->
-        {:reply, nil, state}
     end
   end
 
