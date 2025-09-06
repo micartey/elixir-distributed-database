@@ -14,4 +14,8 @@ defmodule User.User do
   def is_valid?(%User{} = user, username, password) do
     String.equivalent?(username, user.username) && String.equivalent?(password, user.password)
   end
+
+  def is_valid?(%{username: username, password: password} = user, username, password) do
+    String.equivalent?(username, user.username) && String.equivalent?(password, user.password)
+  end
 end

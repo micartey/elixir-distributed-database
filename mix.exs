@@ -4,13 +4,12 @@ defmodule Eddb.MixProject do
   def project do
     [
       app: :eddb,
-      version: "0.9.1",
+      version: "0.9.2",
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       description: description(),
       package: package(),
       deps: deps(),
-
       name: "Eddb",
       source_url: "https://github.com/micartey/elixir-distributed-database",
       docs: [
@@ -24,7 +23,6 @@ defmodule Eddb.MixProject do
   defp description() do
     "Distirbuted database for unstructured data"
   end
-
 
   defp package() do
     [
@@ -51,7 +49,7 @@ defmodule Eddb.MixProject do
       {:cluster_bot, "~> 0.2.0"},
       {:yajwt, "~> 1.0"},
       {:joken, "~> 2.6"},
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
 end
