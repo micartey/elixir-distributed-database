@@ -133,6 +133,18 @@ defmodule Database.Worker do
     end
   end
 
+  def handle_call({:delete_topic, topic_name}, _caller_pid, state) do
+    # Remove from state
+    new_state = Enum.filter(state, &(&1.topic != topic_name))
+
+    # Remove from disc
+    if File.exists?("topic_" <> topic_name <> ".json") do
+      File.rm("topic_" <> topic_name <> ".json")
+    end
+
+    {:reply, :ok, new_state}
+  end
+
   def handle_call({:sync, topic_name}, _caller_pid, state) do
     topics = get_topics(state, topic_name)
 
@@ -149,7 +161,7 @@ defmodule Database.Worker do
     merged_topic = %Topic{
       topic: topic_name,
       entries: entries
-    };
+    }
 
     # State withouth the topic that has been modified
     new_state =

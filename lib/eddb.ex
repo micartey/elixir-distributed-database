@@ -8,7 +8,7 @@ defmodule Eddb do
     children = [
       Database,
       ClusterMonitor,
-      UserServer,
+      UserServer
       # {Plug.Cowboy, scheme: :http, plug: Router, options: [port: 5342]}
     ]
 

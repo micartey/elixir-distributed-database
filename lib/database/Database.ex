@@ -52,4 +52,39 @@ defmodule Database.Database do
         get_worker_index_itr(pid, index + 1)
     end
   end
+
+  def list_topics() do
+    nodes = [node() | Node.list()]
+
+    nodes
+    |> Enum.flat_map(fn node ->
+      1..@pool_size
+      |> Enum.flat_map(fn index ->
+        worker = :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
+
+        case :rpc.call(node, GenServer, :call, [worker, {:get_state}]) do
+          topics when is_list(topics) -> Enum.map(topics, & &1.topic)
+          _ -> []
+        end
+      end)
+    end)
+    |> Enum.uniq()
+  end
+
+  def delete_topic(topic_name) do
+    nodes = [node() | Node.list()]
+
+    nodes
+    |> Enum.each(fn node ->
+      1..@pool_size
+      |> Enum.each(fn index ->
+        worker = :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
+        :rpc.call(node, GenServer, :call, [worker, {:delete_topic, topic_name}])
+      end)
+    end)
+
+    :ok
+  end
+
+  def pool_size, do: @pool_size
 end

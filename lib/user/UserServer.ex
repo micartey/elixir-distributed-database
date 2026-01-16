@@ -68,6 +68,24 @@ defmodule User.UserServer do
     end
   end
 
+  def handle_call({:delete_user, username}, _caller_pid, state) do
+    user_exists = Enum.any?(state, &(&1.username == username))
+
+    if user_exists do
+      Logger.info("User #{username} deleted")
+      new_state = Enum.filter(state, &(&1.username != username))
+      store_object(@storage, new_state)
+      {:reply, :ok, new_state}
+    else
+      Logger.error("User #{username} not found")
+      {:reply, {:error, :not_found}, state}
+    end
+  end
+
+  def handle_call({:get_state}, _caller_pid, state) do
+    {:reply, state, state}
+  end
+
   def create_user(username, password, permission) do
     user = User.new(username, password, permission)
 
@@ -84,6 +102,22 @@ defmodule User.UserServer do
     |> Enum.each(fn node ->
       pid = :rpc.call(node, Process, :whereis, [:user_server])
       callback.({pid, user})
+    end)
+  end
+
+  def delete_user(username) do
+    callback = fn pid ->
+      GenServer.call(pid, {:delete_user, username})
+    end
+
+    # Delete user local
+    callback.(Process.whereis(:user_server))
+
+    # Replicate on other nodes
+    Node.list()
+    |> Enum.each(fn node ->
+      pid = :rpc.call(node, Process, :whereis, [:user_server])
+      callback.(pid)
     end)
   end
 
