@@ -15,6 +15,11 @@ defmodule User.UserServer do
     state =
       if File.exists?(@storage) do
         retrieve_object(@storage)
+        |> Enum.map(fn
+          %User{} = user -> user
+          map when is_map(map) -> struct(User, map)
+          other -> other
+        end)
       else
         []
       end
@@ -25,13 +30,8 @@ defmodule User.UserServer do
   end
 
   def handle_call({:create_user, %User{} = user}, _caller_pid, state) do
-    username_taken =
-      state
-      |> Enum.filter(&(&1.username == user.username))
-      |> Enum.any?()
+    username_taken = Enum.any?(state, &(&1.username == user.username))
 
-    # Check if username is alreay taken and password is long enough.
-    # Create user and append to state if conditions are meet
     cond do
       username_taken ->
         Logger.error("Username #{user.username} is alreay taken")
@@ -43,24 +43,31 @@ defmodule User.UserServer do
 
       true ->
         Logger.info("User #{user.username} created")
-
-        state = [user | state]
-        store_object(@storage, state)
-
-        {:reply, user, state}
+        new_state = [user | state]
+        store_object(@storage, new_state)
+        {:reply, user, new_state}
     end
   end
 
-  def handle_call({:auth_user, username, password}, _caller_pid, state) do
-    user =
-      state
-      |> Enum.find(&User.is_valid?(&1, username, password))
+  def handle_call({:update_user, %User{} = merged_user}, _caller_pid, state) do
+    user_index = Enum.find_index(state, &(&1.username == merged_user.username))
 
-    # Check if user is authenticated (exsits)
-    # Return false if not
+    new_state =
+      if user_index do
+        List.replace_at(state, user_index, merged_user)
+      else
+        [merged_user | state]
+      end
+
+    store_object(@storage, new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call({:auth_user, username, password}, _caller_pid, state) do
+    user = Enum.find(state, &User.is_valid?(&1, username, password))
+
     case user do
       nil ->
-        Logger.error("Failed authentication: #{username}")
         {:reply, nil, state}
 
       user ->
@@ -74,8 +81,46 @@ defmodule User.UserServer do
     if user_exists do
       Logger.info("User #{username} deleted")
       new_state = Enum.filter(state, &(&1.username != username))
+
       store_object(@storage, new_state)
+
       {:reply, :ok, new_state}
+    else
+      Logger.error("User #{username} not found")
+      {:reply, {:error, :not_found}, state}
+    end
+  end
+
+  def handle_call({:add_topic, username, topic}, _caller_pid, state) do
+    user_index = Enum.find_index(state, &(&1.username == username))
+
+    if user_index do
+      user = Enum.at(state, user_index)
+      new_user = %User{user | topics: Enum.uniq([topic | user.topics])}
+      new_state = List.replace_at(state, user_index, new_user)
+
+      store_object(@storage, new_state)
+
+      Logger.info("Topic #{topic} added to user #{username}")
+      {:reply, {:ok, new_user}, new_state}
+    else
+      Logger.error("User #{username} not found")
+      {:reply, {:error, :not_found}, state}
+    end
+  end
+
+  def handle_call({:remove_topic, username, topic}, _caller_pid, state) do
+    user_index = Enum.find_index(state, &(&1.username == username))
+
+    if user_index do
+      user = Enum.at(state, user_index)
+      new_user = %User{user | topics: List.delete(user.topics, topic)}
+      new_state = List.replace_at(state, user_index, new_user)
+
+      store_object(@storage, new_state)
+
+      Logger.info("Topic #{topic} removed from user #{username}")
+      {:reply, {:ok, new_user}, new_state}
     else
       Logger.error("User #{username} not found")
       {:reply, {:error, :not_found}, state}
@@ -86,64 +131,11 @@ defmodule User.UserServer do
     {:reply, state, state}
   end
 
-  def create_user(username, password, permission) do
-    user = User.new(username, password, permission)
-
-    callback = fn {pid, user} ->
-      pid
-      |> GenServer.call({:create_user, user})
+  def handle_call({:reset_state}, _caller_pid, _state) do
+    if File.exists?(@storage) do
+      File.rm!(@storage)
     end
 
-    # Create user local
-    callback.({Process.whereis(:user_server), user})
-
-    # Replicate data on other nodes
-    Node.list()
-    |> Enum.each(fn node ->
-      pid = :rpc.call(node, Process, :whereis, [:user_server])
-      callback.({pid, user})
-    end)
-  end
-
-  def delete_user(username) do
-    callback = fn pid ->
-      GenServer.call(pid, {:delete_user, username})
-    end
-
-    # Delete user local
-    callback.(Process.whereis(:user_server))
-
-    # Replicate on other nodes
-    Node.list()
-    |> Enum.each(fn node ->
-      pid = :rpc.call(node, Process, :whereis, [:user_server])
-      callback.(pid)
-    end)
-  end
-
-  @doc """
-  Check if user credentials are valid
-  """
-  def auth_user(username, password) when is_binary(username) and is_binary(password) do
-    # Search locally
-    # callback returns either nil or the User
-    callback = fn {pid, username, password} ->
-      pid
-      |> GenServer.call({:auth_user, username, password})
-    end
-
-    case callback.({Process.whereis(:user_server), username, password}) do
-      # Search on other nodes as this node does not contain the data
-      nil ->
-        Node.list()
-        |> Enum.find(fn node ->
-          pid = :rpc.call(node, Process, :whereis, [:user_server])
-          callback.({pid, username, password})
-        end)
-
-      # Simply return the user
-      user ->
-        user
-    end
+    {:reply, :ok, []}
   end
 end

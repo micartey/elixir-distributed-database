@@ -14,11 +14,9 @@ defmodule Database.Topic do
     |> Enum.any?(&String.equivalent?(&1.key, key))
   end
 
-  def replace_entry(%Topic{entries: entries} = topic, %Entry{key: key} = entry) do
+  def replace_entry(%Topic{entries: _entries} = topic, %Entry{key: key} = entry) do
     modified_topic = delete_entry_by_key(topic, key)
-    %Topic{topic |
-      entries: [entry | modified_topic.entries]
-    }
+    %Topic{topic | entries: [entry | modified_topic.entries]}
   end
 
   def delete_entry_by_key(%Topic{entries: entries} = topic, key) do
@@ -27,9 +25,7 @@ defmodule Database.Topic do
       |> Enum.filter(&(!String.equivalent?(&1.key, key)))
       |> Enum.to_list()
 
-    %Topic{topic |
-      entries: filtered_entries
-    }
+    %Topic{topic | entries: filtered_entries}
   end
 
   def get_entry(%Topic{entries: entries}, key) do
@@ -37,7 +33,7 @@ defmodule Database.Topic do
     |> Enum.find(&String.equivalent?(&1.key, key))
   end
 
-  def get_entry(nil, key) do
+  def get_entry(nil, _key) do
     nil
   end
 end

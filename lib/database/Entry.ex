@@ -61,13 +61,14 @@ defmodule Database.Entry do
     |> Entry.combine()
   """
   def combine(entries) do
-    keys = get_keys(entries)
+    keys =
+      get_keys(entries)
       |> Enum.uniq()
 
     combine_helper([], entries, keys)
   end
 
-  defp combine_helper(result, entries, []), do: result
+  defp combine_helper(result, _entries, []), do: result
 
   defp combine_helper(result, entries, keys) do
     key = List.first(keys)

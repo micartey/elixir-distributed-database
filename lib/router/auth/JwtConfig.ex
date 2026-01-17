@@ -1,8 +1,6 @@
 defmodule Router.Auth.JwtConfig do
   use Joken.Config
 
-  @secret "my_secret_key"
-
   def token_config do
     default_claims(default_exp: 3600)
     default_claims(iss: "iex://#{Node.self()}")

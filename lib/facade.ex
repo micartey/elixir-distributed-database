@@ -3,33 +3,60 @@ defmodule Eddb.Facade do
   A facade providing easy-to-use commands for managing users, topics, and entries.
   """
 
-  alias User.UserServer
+  alias User.User
   alias Database.Worker
   alias Database.Database
 
   # User Management
 
   def create_user(username, password, permissions \\ []) do
-    UserServer.create_user(username, password, permissions)
+    User.create_user(username, password, permissions)
   end
 
   def delete_user(username) do
-    UserServer.delete_user(username)
+    User.delete_user(username)
+  end
+
+  def add_topic_to_user(username, topic) do
+    User.add_topic(username, topic)
+  end
+
+  def remove_topic_from_user(username, topic) do
+    User.remove_topic(username, topic)
   end
 
   def list_users do
     nodes = [node() | Node.list()]
 
-    nodes
-    |> Enum.flat_map(fn node ->
-      pid = :rpc.call(node, Process, :whereis, [:user_server])
+    all_user_instances =
+      nodes
+      |> Enum.flat_map(fn node ->
+        pid = :rpc.call(node, Process, :whereis, [:user_server])
 
-      case :rpc.call(node, GenServer, :call, [pid, {:get_state}]) do
-        users when is_list(users) -> users
-        _ -> []
-      end
+        case :rpc.call(node, GenServer, :call, [pid, {:get_state}]) do
+          users when is_list(users) -> users
+          _ -> []
+        end
+      end)
+
+    all_user_instances
+    |> Enum.group_by(& &1.username)
+    |> Enum.map(fn {_username, users} ->
+      first = List.first(users)
+      merged_topics = users |> Enum.flat_map(& &1.topics) |> Enum.uniq()
+
+      # Ensure we have a User struct
+      merged_user =
+        case first do
+          %User{} -> %{first | topics: merged_topics}
+          map -> struct(User, Map.put(map, :topics, merged_topics))
+        end
+
+      # Sync and save to disk
+      User.update_user(merged_user)
+
+      merged_user
     end)
-    |> Enum.uniq_by(& &1.username)
   end
 
   # Database/Topic Management

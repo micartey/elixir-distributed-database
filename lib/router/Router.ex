@@ -1,5 +1,5 @@
 defmodule Router.Router do
-  alias User.UserServer
+  alias User.User
   alias Router.Auth.JwtConfig
   alias Router.Authenticate
   use Plug.Router
@@ -24,10 +24,10 @@ defmodule Router.Router do
   The token needs to be used for every other endpoint that is not excempted.
   """
   post "/auth" do
-    {:ok, body_raw, _conn} = Plug.Conn.read_body(conn)
+    {:ok, body_raw, conn} = Plug.Conn.read_body(conn)
     body = Poison.Parser.parse!(body_raw, %{keys: :atoms!})
 
-    case UserServer.auth_user(body[:username], body[:password]) do
+    case User.auth_user(body[:username], body[:password]) do
       nil ->
         send_resp(conn, 401, Poison.encode!(%{error: "User not found or incorrect password"}))
 
@@ -40,7 +40,8 @@ defmodule Router.Router do
               |> Integer.digits()
               |> Enum.map(fn digit -> <<digit + 100::utf8>> end)
               |> Enum.join(""),
-            "permission" => user.permission
+            "permission" => user.permission,
+            "topics" => user.topics
           })
 
         send_resp(conn, 200, Poison.encode!(%{token: token}))
@@ -52,17 +53,22 @@ defmodule Router.Router do
   The URL is strctured as follows: /get?topic=...&key=...
   """
   get "/get" do
-    param = fetch_query_params(conn).params
+    conn = fetch_query_params(conn)
+    param = conn.params
 
     # ?topic=...&key=...
     topic = param["topic"]
     key = param["key"]
 
-    result =
-      Database.Database.get_worker(topic)
-      |> GenServer.call({:get, topic, key})
+    if Authenticate.authorized?(conn.assigns[:current_user], topic, :READ) do
+      result =
+        Database.Database.get_worker(key)
+        |> GenServer.call({:get, topic, key})
 
-    send_resp(conn, 200, Poison.encode!(result))
+      send_resp(conn, 200, Poison.encode!(result))
+    else
+      send_resp(conn, 403, Poison.encode!(%{error: "Forbidden"}))
+    end
   end
 
   @doc """
@@ -80,28 +86,32 @@ defmodule Router.Router do
   If old_value is present, the put operation will use optimistic locking.
   """
   put "/put" do
-    {:ok, body_raw, _conn} = Plug.Conn.read_body(conn)
+    {:ok, body_raw, conn} = Plug.Conn.read_body(conn)
 
     body = Poison.Parser.parse!(body_raw, %{keys: :atoms!})
 
-    # Use optimistic locking if old_data is present
-    # Otherwise, just put the data into the database
-    result =
-      if Map.has_key?(body, :old_value) do
-        Database.Database.get_worker(body[:topic])
-        |> GenServer.call({:put, body[:topic], body[:key], body[:old_value], body[:value]})
-      else
-        Database.Database.get_worker(body[:topic])
-        |> GenServer.call({:put, body[:topic], body[:key], body[:value]})
+    if Authenticate.authorized?(conn.assigns[:current_user], body[:topic], :WRITE) do
+      # Use optimistic locking if old_data is present
+      # Otherwise, just put the data into the database
+      result =
+        if Map.has_key?(body, :old_value) do
+          Database.Database.get_worker(body[:key])
+          |> GenServer.call({:put, body[:topic], body[:key], body[:old_value], body[:value]})
+        else
+          Database.Database.get_worker(body[:key])
+          |> GenServer.call({:put, body[:topic], body[:key], body[:value]})
+        end
+
+      # Check if the result is a failure
+      case result do
+        :fail ->
+          send_resp(conn, 409, Poison.encode!(%{error: "Conflict"}))
+
+        _ ->
+          send_resp(conn, 200, Poison.encode!(result))
       end
-
-    # Check if the result is a failure
-    case result do
-      :fail ->
-        send_resp(conn, 409, Poison.encode!(%{error: "Conflict"}))
-
-      _ ->
-        send_resp(conn, 200, Poison.encode!(result))
+    else
+      send_resp(conn, 403, Poison.encode!(%{error: "Forbidden"}))
     end
   end
 

@@ -22,8 +22,14 @@ defmodule Router.Authenticate do
   def authenticate_request(conn) do
     with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
          {:ok, claims} <- verify_token(token) do
+      # Convert permission to atom if it's a string, so we can use :ADMIN etc.
+      claims =
+        case claims["permission"] do
+          p when is_binary(p) -> Map.put(claims, "permission", String.to_existing_atom(p))
+          _ -> claims
+        end
+
       # Assign claims to the connection for downstream use
-      # TODO: Figure out how to use this on downstream
       assign(conn, :current_user, claims)
     else
       _ ->
@@ -36,5 +42,32 @@ defmodule Router.Authenticate do
 
   defp verify_token(token) do
     JwtConfig.verify_and_validate(token)
+  end
+
+  @doc """
+  Check if user is authorized to access a certain topic with a required permission level.
+  """
+  def authorized?(claims, topic, required_permission \\ :READ) do
+    permission = claims["permission"]
+    topics = claims["topics"] || []
+
+    # Admin has all permissions on all topics
+    if permission == :ADMIN do
+      true
+    else
+      # Check if user has access to the topic
+      has_topic_access = Enum.member?(topics, topic)
+
+      # Check if user has sufficient permission level
+      has_permission_level =
+        case {required_permission, permission} do
+          {:READ, :READ} -> true
+          {:READ, :WRITE} -> true
+          {:WRITE, :WRITE} -> true
+          _ -> false
+        end
+
+      has_topic_access and has_permission_level
+    end
   end
 end

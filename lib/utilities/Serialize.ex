@@ -1,5 +1,4 @@
 defmodule Utilities.Serialize do
-
   def store_object(file_path, object) do
     json_string = Poison.encode!(object)
     File.write!(file_path, json_string)
@@ -69,6 +68,15 @@ end
 
 defimpl Poison.Encoder, for: Database.Topic do
   def encode(%Database.Topic{} = doc, opts) do
+    doc
+    |> Map.from_struct()
+    |> Map.put("__struct__", inspect(doc.__struct__))
+    |> Poison.Encoder.Map.encode(opts)
+  end
+end
+
+defimpl Poison.Encoder, for: User.User do
+  def encode(%User.User{} = doc, opts) do
     doc
     |> Map.from_struct()
     |> Map.put("__struct__", inspect(doc.__struct__))
