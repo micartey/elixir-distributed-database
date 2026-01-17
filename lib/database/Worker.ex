@@ -185,7 +185,7 @@ defmodule Database.Worker do
     5. Merge the list with local data and drop all *nil* values
   """
   def get_topics(state, topic) do
-    db_worker_index = Database.Database.get_worker_index(self())
+    db_worker_index = Database.Database.get_worker_index(self()) || 1
 
     topics =
       Node.list()

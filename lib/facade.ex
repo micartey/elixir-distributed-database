@@ -4,6 +4,7 @@ defmodule Eddb.Facade do
   """
 
   alias User.UserServer
+  alias Database.Worker
   alias Database.Database
 
   # User Management
@@ -34,7 +35,17 @@ defmodule Eddb.Facade do
   # Database/Topic Management
 
   def list_topics do
-    Database.list_topics()
+    loaded_topics = Database.list_topics()
+
+    disk_topics =
+      Path.wildcard("topic_*.json")
+      |> Enum.map(fn path ->
+        path
+        |> String.replace("topic_", "")
+        |> String.replace(".json", "")
+      end)
+
+    (loaded_topics ++ disk_topics)
     |> Enum.uniq()
   end
 
@@ -97,27 +108,39 @@ defmodule Eddb.Facade do
   # Helpers
 
   def query_topic(topic_name) do
-    # This returns all entries for a topic across all workers and nodes
     nodes = [node() | Node.list()]
 
-    nodes
-    |> Enum.flat_map(fn node ->
-      # @pool_size from Database.Database
-      1..10
-      |> Enum.flat_map(fn index ->
-        worker = :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
-        # We use get_topic_local via rpc to get entries from this worker
-        case :rpc.call(node, GenServer, :call, [worker, {:get_state}]) do
-          topics when is_list(topics) ->
-            topics
-            |> Enum.filter(&(&1.topic == topic_name))
-            |> Enum.flat_map(& &1.entries)
+    # 1. Scan state of all workers
+    found_topic =
+      Enum.find_value(nodes, fn node ->
+        1..Database.pool_size()
+        |> Enum.find_value(fn index ->
+          worker = :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
 
-          _ ->
-            []
-        end
+          if worker do
+            case :rpc.call(node, GenServer, :call, [worker, {:get_state}]) do
+              topics when is_list(topics) ->
+                Enum.find(topics, fn t -> t.topic == topic_name end)
+
+              _ ->
+                nil
+            end
+          end
+        end)
       end)
-    end)
-    |> Enum.uniq_by(& &1.key)
+
+    if found_topic do
+      found_topic
+    else
+      # 2. Temporary worker logic
+      topic_from_disk = Worker.get_topic_local([], topic_name)
+      initial_state = if topic_from_disk, do: [topic_from_disk], else: []
+
+      {:ok, pid} = GenServer.start_link(Worker, initial_state)
+      synced_topic = GenServer.call(pid, {:sync, topic_name})
+      GenServer.stop(pid)
+
+      synced_topic
+    end
   end
 end
