@@ -102,6 +102,8 @@ curl -X PUT "http://localhost:5342/put" \
   }'
 ```
 
+Adding a field `old_value` provides you with the ability to use optimistic locking.
+
 ### Get
 
 ```bash
