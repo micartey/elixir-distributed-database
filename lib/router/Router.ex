@@ -12,17 +12,15 @@ defmodule Router.Router do
 
   plug(:dispatch)
 
-  @doc """
-  Authenticate the user based on the received payload:
-
-  {
-    "username": "...",
-    "password:"..."
-  }
-
-  This will return - on successfull authentication - a JWT token.
-  The token needs to be used for every other endpoint that is not excempted.
-  """
+  # Authenticate the user based on the received payload:
+  #
+  # {
+  #   "username": "...",
+  #   "password:"..."
+  # }
+  #
+  # This will return - on successfull authentication - a JWT token.
+  # The token needs to be used for every other endpoint that is not excempted.
   post "/auth" do
     {:ok, body_raw, conn} = Plug.Conn.read_body(conn)
     body = Poison.Parser.parse!(body_raw, %{keys: :atoms!})
@@ -48,10 +46,8 @@ defmodule Router.Router do
     end
   end
 
-  @doc """
-  Get the value of a key from a topic.
-  The URL is strctured as follows: /get?topic=...&key=...
-  """
+  # Get the value of a key from a topic.
+  # The URL is strctured as follows: /get?topic=...&key=...
   get "/get" do
     conn = fetch_query_params(conn)
     param = conn.params
@@ -62,7 +58,7 @@ defmodule Router.Router do
 
     if Authenticate.authorized?(conn.assigns[:current_user], topic, :READ) do
       result =
-        Database.Database.get_worker(key)
+        get_database_worker(topic)
         |> GenServer.call({:get, topic, key})
 
       send_resp(conn, 200, Poison.encode!(result))
@@ -71,34 +67,33 @@ defmodule Router.Router do
     end
   end
 
-  @doc """
-  Put a key-value into a topic.
-
-  The body of the request should be a JSON object with the following structure:
-
-  {
-    "topic": "...",
-    "key": "...",
-    "value": "...",
-    "old_value": "..." (optional)
-  }
-
-  If old_value is present, the put operation will use optimistic locking.
-  """
+  # Put a key-value into a topic.
+  #
+  # The body of the request should be a JSON object with the following structure:
+  #
+  # {
+  #   "topic": "...",
+  #   "key": "...",
+  #   "value": "...",
+  #   "old_value": "..." (optional)
+  # }
+  #
+  # If old_value is present, the put operation will use optimistic locking.
   put "/put" do
     {:ok, body_raw, conn} = Plug.Conn.read_body(conn)
 
     body = Poison.Parser.parse!(body_raw, %{keys: :atoms!})
+    topic = body[:topic]
 
-    if Authenticate.authorized?(conn.assigns[:current_user], body[:topic], :WRITE) do
+    if Authenticate.authorized?(conn.assigns[:current_user], topic, :WRITE) do
       # Use optimistic locking if old_data is present
       # Otherwise, just put the data into the database
       result =
         if Map.has_key?(body, :old_value) do
-          Database.Database.get_worker(body[:key])
+          get_database_worker(topic)
           |> GenServer.call({:put, body[:topic], body[:key], body[:old_value], body[:value]})
         else
-          Database.Database.get_worker(body[:key])
+          get_database_worker(topic)
           |> GenServer.call({:put, body[:topic], body[:key], body[:value]})
         end
 
@@ -117,5 +112,15 @@ defmodule Router.Router do
 
   match _ do
     send_resp(conn, 404, "oops")
+  end
+
+  def get_database_worker(topic) do
+    case Database.Database.get_workers_with_topic(node(), topic) do
+      [] ->
+        Database.Database.get_worker(topic)
+
+      [worker | _] ->
+        worker
+    end
   end
 end
