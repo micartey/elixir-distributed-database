@@ -11,7 +11,7 @@ defmodule Database.Database do
     IO.puts("Starting Database Supervisor")
 
     children =
-      1..@pool_size
+      1..(@pool_size + 1)
       |> Enum.map(fn index -> Supervisor.child_spec({Worker, {index}}, id: index) end)
 
     IO.puts("Started #{length(children)} workers")
@@ -60,15 +60,25 @@ defmodule Database.Database do
     |> Enum.flat_map(fn node ->
       1..@pool_size
       |> Enum.flat_map(fn index ->
-        worker = :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
-
-        case :rpc.call(node, GenServer, :call, [worker, {:get_state}]) do
+        case get_worker_state(node, index) do
           topics when is_list(topics) -> Enum.map(topics, & &1.topic)
           _ -> []
         end
       end)
     end)
     |> Enum.uniq()
+  end
+
+  def get_workers_with_topic(node, topic_name) do
+    1..@pool_size
+    |> Enum.map(fn index ->
+      {index, :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])}
+    end)
+    |> Enum.filter(fn {_index, pid} ->
+      state = :rpc.call(node, GenServer, :call, [pid, {:get_state}])
+      Enum.any?(state, fn t -> t.topic == topic_name end)
+    end)
+    |> Enum.map(fn {_index, pid} -> pid end)
   end
 
   def delete_topic(topic_name) do
@@ -79,11 +89,16 @@ defmodule Database.Database do
       1..@pool_size
       |> Enum.each(fn index ->
         worker = :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
-        :rpc.call(node, GenServer, :call, [worker, {:delete_topic, topic_name}])
+        if worker, do: :rpc.call(node, GenServer, :call, [worker, {:delete_topic, topic_name}])
       end)
     end)
 
     :ok
+  end
+
+  defp get_worker_state(node, index) do
+    worker = :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
+    if worker, do: :rpc.call(node, GenServer, :call, [worker, {:get_state}]), else: nil
   end
 
   def pool_size, do: @pool_size

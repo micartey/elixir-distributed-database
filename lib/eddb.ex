@@ -2,6 +2,7 @@ defmodule Eddb do
   alias User.UserServer
   alias Router.Router
   alias Database.Database
+  alias Schedulers.SyncScheduler
   use Application
 
   def start(_type, _args) do
@@ -9,6 +10,7 @@ defmodule Eddb do
       Database,
       ClusterMonitor,
       UserServer,
+      SyncScheduler,
       {Plug.Cowboy, scheme: :http, plug: Router, options: [port: 5342]}
     ]
 

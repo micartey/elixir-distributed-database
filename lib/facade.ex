@@ -96,14 +96,19 @@ defmodule Eddb.Facade do
 
     nodes
     |> Enum.each(fn node ->
-      # We need to find which workers might have this topic.
-      # Since we don't know the keys, we ask all workers to sync this topic name.
-      # This will - however - polute all workers with the topic even if they don't handle it
-      1..Database.pool_size()
-      |> Enum.each(fn index ->
-        worker = :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
-        :rpc.call(node, GenServer, :call, [worker, {:sync, topic_name}])
-      end)
+      case Database.get_workers_with_topic(node, topic_name) do
+        [] ->
+          # No worker has this topic loaded, use the pre-started nth + 1 worker
+          temp_worker_index = Database.pool_size() + 1
+          pid = :rpc.call(node, Process, :whereis, [:"db_worker_#{temp_worker_index}"])
+          :rpc.call(node, GenServer, :call, [pid, {:sync, topic_name}])
+
+        workers ->
+          # One or more workers have this topic, sync all of them
+          Enum.each(workers, fn pid ->
+            :rpc.call(node, GenServer, :call, [pid, {:sync, topic_name}])
+          end)
+      end
     end)
 
     :ok
