@@ -105,7 +105,8 @@ curl -X PUT "http://localhost:5342/put" \
 ### Get
 
 ```bash
-curl "http://localhost:5342/get?topic=test_topic&key=asdasd" -H "Authorization: Bearer $TOKEN"
+curl "http://localhost:5342/get?topic=test_topic&key=asdasd" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Delete
