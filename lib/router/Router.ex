@@ -1,4 +1,5 @@
 defmodule Router.Router do
+  alias GenLSP.Structures.Position
   alias User.User
   alias Router.Auth.JwtConfig
   alias Router.Authenticate
@@ -61,7 +62,13 @@ defmodule Router.Router do
         get_database_worker(topic)
         |> GenServer.call({:get, topic, key})
 
-      send_resp(conn, 200, Poison.encode!(result))
+      case result do
+        nil ->
+          send_resp(conn, 404, Poison.encode!(%{error: "Topic or key does not exist"}))
+
+        rs ->
+          send_resp(conn, 200, Poison.encode!(rs))
+      end
     else
       send_resp(conn, 403, Poison.encode!(%{error: "Forbidden"}))
     end
@@ -101,6 +108,9 @@ defmodule Router.Router do
       case result do
         :fail ->
           send_resp(conn, 409, Poison.encode!(%{error: "Conflict"}))
+
+        nil ->
+          send_resp(conn, 404, Poison.encode!(%{error: "Topic or key does not exist"}))
 
         _ ->
           send_resp(conn, 200, Poison.encode!(result))
