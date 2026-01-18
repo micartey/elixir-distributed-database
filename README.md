@@ -86,7 +86,9 @@ curl "http://localhost:5342/get?topic=test_topic&key=asdasd" -H "Authorization: 
 
 ### Delete
 
-> [!CAUTION] There are currently no delete capabilities using REST.
+> [!CAUTION]
+> 
+> There are currently no delete capabilities using REST.
 >
 > Please delete a topic manually from the console using `delete_topic`.
 > Make sure that **all nodes are connected** or else the topic will be replaced and **not** deleted!
