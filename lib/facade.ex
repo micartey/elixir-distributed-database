@@ -26,37 +26,8 @@ defmodule Eddb.Facade do
   end
 
   def list_users do
-    nodes = [node() | Node.list()]
-
-    all_user_instances =
-      nodes
-      |> Enum.flat_map(fn node ->
-        pid = :rpc.call(node, Process, :whereis, [:user_server])
-
-        case :rpc.call(node, GenServer, :call, [pid, {:get_state}]) do
-          users when is_list(users) -> users
-          _ -> []
-        end
-      end)
-
-    all_user_instances
-    |> Enum.group_by(& &1.username)
-    |> Enum.map(fn {_username, users} ->
-      first = List.first(users)
-      merged_topics = users |> Enum.flat_map(& &1.topics) |> Enum.uniq()
-
-      # Ensure we have a User struct
-      merged_user =
-        case first do
-          %User{} -> %{first | topics: merged_topics}
-          map -> struct(User, Map.put(map, :topics, merged_topics))
-        end
-
-      # Sync and save to disk
-      User.update_user(merged_user)
-
-      merged_user
-    end)
+    User.sync()
+    Process.whereis(:user_server) |> GenServer.call({:get_state})
   end
 
   # Database/Topic Management

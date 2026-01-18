@@ -131,11 +131,36 @@ defmodule User.UserServer do
     {:reply, state, state}
   end
 
-  def handle_call({:reset_state}, _caller_pid, _state) do
-    if File.exists?(@storage) do
-      File.rm!(@storage)
-    end
+  def handle_call({:sync}, _caller_pid, state) do
+    all_users = get_all_users(state)
 
-    {:reply, :ok, []}
+    new_state =
+      all_users
+      |> Enum.group_by(& &1.username)
+      |> Enum.map(fn {_username, users} ->
+        first = List.first(users)
+        merged_topics = users |> Enum.flat_map(& &1.topics) |> Enum.uniq()
+        %{first | topics: merged_topics}
+      end)
+
+    store_object(@storage, new_state)
+    {:reply, {:ok, new_state}, new_state}
+  end
+
+  def get_all_users(state) do
+    remote_users =
+      Node.list()
+      |> Enum.flat_map(fn node ->
+        remote_server_pid = :rpc.call(node, Process, :whereis, [:user_server])
+
+        if remote_server_pid do
+          :rpc.call(node, GenServer, :call, [remote_server_pid, {:get_state}])
+        else
+          []
+        end
+      end)
+
+    (state ++ remote_users)
+    |> Enum.filter(& &1)
   end
 end

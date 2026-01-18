@@ -5,8 +5,16 @@ defmodule PermissionTest do
   use Plug.Test
 
   setup do
-    # Ensure a clean state for users
-    User.User.reset_state()
+    on_exit(fn ->
+      # Cleanup users that might exist
+      ["admin", "user1", "user2", "user3", "reader", "writer"]
+      |> Enum.each(&Facade.delete_user/1)
+
+      # Cleanup topics
+      ["secret", "public", "private", "news"]
+      |> Enum.each(&Facade.delete_topic/1)
+    end)
+
     :ok
   end
 

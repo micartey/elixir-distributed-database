@@ -28,9 +28,7 @@ defmodule User.User do
       |> GenServer.call({:create_user, user})
     end
 
-    callback.({Process.whereis(:user_server), user})
-
-    Node.list()
+    [node() | Node.list()]
     |> Enum.each(fn node ->
       pid = :rpc.call(node, Process, :whereis, [:user_server])
       callback.({pid, user})
@@ -42,9 +40,7 @@ defmodule User.User do
       GenServer.call(pid, {:delete_user, username})
     end
 
-    callback.(Process.whereis(:user_server))
-
-    Node.list()
+    [node() | Node.list()]
     |> Enum.each(fn node ->
       pid = :rpc.call(node, Process, :whereis, [:user_server])
       callback.(pid)
@@ -56,9 +52,7 @@ defmodule User.User do
       GenServer.call(pid, {:add_topic, username, topic})
     end
 
-    callback.(Process.whereis(:user_server))
-
-    Node.list()
+    [node() | Node.list()]
     |> Enum.each(fn node ->
       pid = :rpc.call(node, Process, :whereis, [:user_server])
       callback.(pid)
@@ -70,9 +64,7 @@ defmodule User.User do
       GenServer.call(pid, {:remove_topic, username, topic})
     end
 
-    callback.(Process.whereis(:user_server))
-
-    Node.list()
+    [node() | Node.list()]
     |> Enum.each(fn node ->
       pid = :rpc.call(node, Process, :whereis, [:user_server])
       callback.(pid)
@@ -84,9 +76,19 @@ defmodule User.User do
       GenServer.call(pid, {:update_user, user})
     end
 
-    callback.(Process.whereis(:user_server))
+    [node() | Node.list()]
+    |> Enum.each(fn node ->
+      pid = :rpc.call(node, Process, :whereis, [:user_server])
+      if pid, do: callback.(pid)
+    end)
+  end
 
-    Node.list()
+  def sync do
+    callback = fn pid ->
+      GenServer.call(pid, {:sync})
+    end
+
+    [node() | Node.list()]
     |> Enum.each(fn node ->
       pid = :rpc.call(node, Process, :whereis, [:user_server])
       if pid, do: callback.(pid)
@@ -121,19 +123,5 @@ defmodule User.User do
         update_user(merged_user)
         merged_user
     end
-  end
-
-  def reset_state do
-    callback = fn pid ->
-      GenServer.call(pid, {:reset_state})
-    end
-
-    callback.(Process.whereis(:user_server))
-
-    Node.list()
-    |> Enum.each(fn node ->
-      pid = :rpc.call(node, Process, :whereis, [:user_server])
-      if pid, do: callback.(pid)
-    end)
   end
 end

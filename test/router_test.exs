@@ -8,8 +8,15 @@ defmodule Router.RouterTest do
   @opts AppRouter.init([])
 
   setup do
-    # Ensure a clean state for users
-    User.reset_state()
+    on_exit(fn ->
+      # Cleanup users that might exist
+      ["testuser", "admin"]
+      |> Enum.each(&User.delete_user/1)
+
+      # Cleanup topics
+      ["topic1", "test_topic"]
+      |> Enum.each(&Database.Database.delete_topic/1)
+    end)
 
     # Create a test user
     User.create_user("testuser", "password123", :READ)

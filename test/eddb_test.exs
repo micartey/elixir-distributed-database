@@ -6,6 +6,7 @@ defmodule EddbTest do
 
   setup do
     on_exit(fn ->
+      Database.Database.delete_topic(@topic)
       Path.wildcard("topic_#{@topic}*.json") |> Enum.each(&File.rm/1)
     end)
 

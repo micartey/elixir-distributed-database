@@ -7,6 +7,9 @@ defmodule Eddb.FacadeTest do
 
   setup do
     on_exit(fn ->
+      ["facade_state_topic", "facade_disk_topic"]
+      |> Enum.each(&Facade.delete_topic/1)
+
       Path.wildcard("topic_facade_*.json") |> Enum.each(&File.rm/1)
     end)
 
