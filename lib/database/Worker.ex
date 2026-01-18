@@ -2,7 +2,6 @@ defmodule Database.Worker do
   alias Utilities.Serialize
   alias Database.Topic
   alias Database.Entry
-  alias Utilities.Serialize
   import Serialize
   require Logger
   use GenServer, restart: :permanent
@@ -179,20 +178,24 @@ defmodule Database.Worker do
   This works as follows:
 
     1. Get all connected nodes
-    2. Get the pid of the equivalent workers on the other nodes
-    3. Call the get_topic_local method on the distante nodes
+    2. Get the pid of the distant workers that have the topic loaded
+    3. Call the get_topic_local method on these workers
     4. Aggregate the data to a list
     5. Merge the list with local data and drop all *nil* values
   """
   def get_topics(state, topic) do
-    db_worker_index = Database.Database.get_worker_index(self()) || 1
-
     topics =
       Node.list()
       |> Enum.map(fn node ->
-        remote_worker_pid = :rpc.call(node, Process, :whereis, [:"db_worker_#{db_worker_index}"])
-        remote_state = :rpc.call(node, GenServer, :call, [remote_worker_pid, {:get_state}])
-        :rpc.call(node, Database.Worker, :get_topic_local, [remote_state, topic])
+        case Database.Database.get_workers_with_topic(node, topic) do
+          [] ->
+            nil
+
+          workers ->
+            remote_worker_pid = List.first(workers)
+            remote_state = :rpc.call(node, GenServer, :call, [remote_worker_pid, {:get_state}])
+            :rpc.call(node, Database.Worker, :get_topic_local, [remote_state, topic])
+        end
       end)
       |> Enum.to_list()
 
