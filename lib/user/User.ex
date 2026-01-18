@@ -33,6 +33,8 @@ defmodule User.User do
       pid = :rpc.call(node, Process, :whereis, [:user_server])
       callback.({pid, user})
     end)
+
+    user
   end
 
   def delete_user(username) do

@@ -35,12 +35,17 @@ defmodule Eddb.Facade do
   def list_topics do
     loaded_topics = Database.list_topics()
 
+    nodes = [node() | Node.list()]
+
     disk_topics =
-      Path.wildcard("topic_*.json")
-      |> Enum.map(fn path ->
-        path
-        |> String.replace("topic_", "")
-        |> String.replace(".json", "")
+      nodes
+      |> Enum.flat_map(fn node ->
+        :rpc.call(node, Path, :wildcard, ["topic_*.json"])
+        |> Enum.map(fn path ->
+          path
+          |> String.replace("topic_", "")
+          |> String.replace(".json", "")
+        end)
       end)
 
     (loaded_topics ++ disk_topics)
@@ -78,6 +83,14 @@ defmodule Eddb.Facade do
 
   # Sync Management
 
+  def sync do
+    # 1. Sync users
+    sync_users()
+
+    # 2. Sync all topics
+    sync_topics()
+  end
+
   def sync_topic(topic_name) do
     nodes = [node() | Node.list()]
 
@@ -96,11 +109,15 @@ defmodule Eddb.Facade do
     :ok
   end
 
-  def sync_all do
+  def sync_topics do
     list_topics()
     |> Enum.each(&sync_topic/1)
 
     :ok
+  end
+
+  def sync_users do
+    User.sync()
   end
 
   # Helpers
