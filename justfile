@@ -10,8 +10,11 @@ start-release:
     JWT_SECRET=ahjsdjajdjkahkjdhasd _build/prod/rel/eddb/bin/eddb start
 
 [group("build")]
-start-remote:
+start-release-remote:
     _build/prod/rel/eddb/bin/eddb remote
+
+iex-remote cookie:
+    DB_PASSWORD=sometestpassword iex --sname local@home --cookie {{ cookie }} -S mix
 
 test:
     mix test
@@ -23,7 +26,7 @@ start-node-a:
     iex --name node_a@127.0.0.1 -S mix
 
 start-node-b:
-    iex --name node_b@127.0.0.1 --eval "Node.connect(:'node_a@127.0.0.1')" -S mix
+    EDDB_DISABLE_HTTP=0 iex --name node_b@127.0.0.1 --eval "Node.connect(:'node_a@127.0.0.1')" -S mix
 
 [group("hex")]
 publish:
