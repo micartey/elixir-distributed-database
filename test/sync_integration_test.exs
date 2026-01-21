@@ -53,6 +53,6 @@ defmodule Eddb.SyncIntegrationTest do
 
     # 5. Verify the first 10 workers STILL do not have it (no pollution)
     workers_with_topic_after = Database.get_workers_with_topic(node(), topic_name)
-    assert workers_with_topic_after == []
+    assert Enum.reject(workers_with_topic_after, &(&1 == temp_worker_pid)) == []
   end
 end

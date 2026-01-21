@@ -72,13 +72,25 @@ defmodule Database.Database do
   def get_workers_with_topic(node, topic_name) do
     1..@pool_size
     |> Enum.map(fn index ->
-      {index, :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])}
+      :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
     end)
-    |> Enum.filter(fn {_index, pid} ->
-      state = :rpc.call(node, GenServer, :call, [pid, {:get_state}])
-      Enum.any?(state, fn t -> t.topic == topic_name end)
+    |> Enum.filter(fn
+      nil ->
+        false
+
+      pid ->
+        if node == node() and pid == self() do
+          # We don't want to call ourselves, but we know we have the topic if we are currently syncing it.
+          # However, this function is used to find OTHER workers to sync with.
+          # For the purpose of get_workers_with_topic, we'll just say false to avoid deadlock.
+          false
+        else
+          case :rpc.call(node, GenServer, :call, [pid, {:get_state}]) do
+            state when is_list(state) -> Enum.any?(state, fn t -> t.topic == topic_name end)
+            _ -> false
+          end
+        end
     end)
-    |> Enum.map(fn {_index, pid} -> pid end)
   end
 
   def delete_topic(topic_name) do

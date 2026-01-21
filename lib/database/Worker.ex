@@ -184,22 +184,20 @@ defmodule Database.Worker do
     5. Merge the list with local data and drop all *nil* values
   """
   def get_topics(state, topic) do
-    topics =
-      Node.list()
-      |> Enum.map(fn node ->
-        case Database.Database.get_workers_with_topic(node, topic) do
-          [] ->
-            nil
+    nodes = [node() | Node.list()]
 
-          workers ->
-            remote_worker_pid = List.first(workers)
-            remote_state = :rpc.call(node, GenServer, :call, [remote_worker_pid, {:get_state}])
-            :rpc.call(node, Database.Worker, :get_topic_local, [remote_state, topic])
-        end
+    remote_topics =
+      nodes
+      |> Enum.flat_map(fn node ->
+        Database.Database.get_workers_with_topic(node, topic)
+        |> Enum.reject(fn pid -> node == node() and pid == self() end)
+        |> Enum.map(fn pid ->
+          remote_state = :rpc.call(node, GenServer, :call, [pid, {:get_state}])
+          :rpc.call(node, Database.Worker, :get_topic_local, [remote_state, topic])
+        end)
       end)
-      |> Enum.to_list()
 
-    [get_topic_local(state, topic) | topics]
+    [get_topic_local(state, topic) | remote_topics]
     |> Enum.filter(& &1)
     |> Enum.to_list()
   end
