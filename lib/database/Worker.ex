@@ -187,6 +187,8 @@ defmodule Database.Worker do
     topics =
       Node.list()
       |> Enum.map(fn node ->
+        IO.inspect(node)
+
         case Database.Database.get_workers_with_topic(node, topic) do
           [] ->
             nil

@@ -11,7 +11,7 @@ defmodule Database.Database do
     IO.puts("Starting Database Supervisor")
 
     children =
-      1..(@pool_size + 1)
+      1..@pool_size
       |> Enum.map(fn index -> Supervisor.child_spec({Worker, {index}}, id: index) end)
 
     IO.puts("Started #{length(children)} workers")
