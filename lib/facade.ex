@@ -3,6 +3,7 @@ defmodule Eddb.Facade do
   A facade providing easy-to-use commands for managing users, topics, and entries.
   """
 
+  require Logger
   alias User.User
   alias Database.Worker
   alias Database.Database
@@ -98,10 +99,10 @@ defmodule Eddb.Facade do
     |> Enum.each(fn node ->
       case Database.get_workers_with_topic(node, topic_name) do
         [] ->
-          # No worker has this topic loaded, use the pre-started nth + 1 worker
-          temp_worker_index = Database.pool_size() + 1
-          pid = :rpc.call(node, Process, :whereis, [:"db_worker_#{temp_worker_index}"])
-          :rpc.call(node, GenServer, :call, [pid, {:sync, topic_name}])
+          # No worker has this topic loaded
+          {:ok, pid} = :rpc.call(node, GenServer, :start_link, [Worker, []])
+          GenServer.call(pid, {:sync, topic_name})
+          GenServer.stop(pid)
 
         workers ->
           # One or more workers have this topic, sync all of them
@@ -128,39 +129,23 @@ defmodule Eddb.Facade do
   # Helpers
 
   def query_topic(topic_name) do
-    nodes = [node() | Node.list()]
+    workers = Database.get_workers_with_topic(node(), topic_name)
 
-    # 1. Scan state of all workers
-    found_topic =
-      Enum.find_value(nodes, fn node ->
-        1..Database.pool_size()
-        |> Enum.find_value(fn index ->
-          worker = :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
+    initial_state =
+      case workers do
+        [worker_pid | _] ->
+          state = GenServer.call(worker_pid, {:get_state})
+          topic = Enum.find(state, &(&1.topic == topic_name))
+          [topic]
 
-          if worker do
-            case :rpc.call(node, GenServer, :call, [worker, {:get_state}]) do
-              topics when is_list(topics) ->
-                Enum.find(topics, fn t -> t.topic == topic_name end)
+        [] ->
+          []
+      end
 
-              _ ->
-                nil
-            end
-          end
-        end)
-      end)
+    {:ok, pid} = GenServer.start_link(Worker, initial_state)
+    synced_topic = GenServer.call(pid, {:sync, topic_name})
+    GenServer.stop(pid)
 
-    if found_topic do
-      found_topic
-    else
-      # 2. Temporary worker logic
-      topic_from_disk = Worker.get_topic_local([], topic_name)
-      initial_state = if topic_from_disk, do: [topic_from_disk], else: []
-
-      {:ok, pid} = GenServer.start_link(Worker, initial_state)
-      synced_topic = GenServer.call(pid, {:sync, topic_name})
-      GenServer.stop(pid)
-
-      synced_topic
-    end
+    synced_topic
   end
 end

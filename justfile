@@ -23,10 +23,10 @@ start:
     iex -S mix
 
 start-node-a:
-    iex --name node_a@127.0.0.1 -S mix
+    EDDB_IN_MEMORY=1 iex --name node_a@127.0.0.1 -S mix
 
 start-node-b:
-    EDDB_DISABLE_HTTP=0 iex --name node_b@127.0.0.1 --eval "Node.connect(:'node_a@127.0.0.1')" -S mix
+    EDDB_IN_MEMORY=1 EDDB_DISABLE_HTTP=1 iex --name node_b@127.0.0.1 --eval "Node.connect(:'node_a@127.0.0.1')" -S mix
 
 [group("hex")]
 publish:
