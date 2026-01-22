@@ -1,5 +1,4 @@
 defmodule Router.Router do
-  alias GenLSP.Structures.Position
   alias User.User
   alias Router.Auth.JwtConfig
   alias Router.Authenticate
