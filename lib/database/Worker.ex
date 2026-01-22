@@ -18,8 +18,15 @@ defmodule Database.Worker do
     {:reply, state, state}
   end
 
-  def handle_call({:get, topic, key}, _caller_pid, state) do
-    aggregated_topics = get_topics(state, topic)
+  def handle_call({:get, topic_name, key}, _caller_pid, state) do
+    local_topic = get_topic_local(state, topic_name)
+
+    new_state =
+      if local_topic,
+        do: [local_topic | Enum.filter(state, &(&1.topic != topic_name))],
+        else: state
+
+    aggregated_topics = get_topics(new_state, topic_name)
 
     sorted_topics =
       aggregated_topics
@@ -50,15 +57,22 @@ defmodule Database.Worker do
       |> List.first()
       |> Topic.get_entry(key)
 
-    {:reply, entry, state}
+    {:reply, entry, new_state}
   end
 
-  def handle_call({:get_local, topic, key}, _caller_pid, state) do
+  def handle_call({:get_local, topic_name, key}, _caller_pid, state) do
+    local_topic = get_topic_local(state, topic_name)
+
+    new_state =
+      if local_topic,
+        do: [local_topic | Enum.filter(state, &(&1.topic != topic_name))],
+        else: state
+
     entry =
-      get_topic_local(state, topic)
+      local_topic
       |> Topic.get_entry(key)
 
-    {:reply, entry, state}
+    {:reply, entry, new_state}
   end
 
   def handle_call({:put, topic_name, key, data}, _caller_pid, state) do
@@ -101,7 +115,7 @@ defmodule Database.Worker do
 
     cond do
       List.first(result.history).data == old_data ->
-        handle_call({:put, topic_name, key, data}, nil, state)
+        {_, _, state} = handle_call({:put, topic_name, key, data}, nil, state)
         {:reply, :ok, state}
 
       true ->
