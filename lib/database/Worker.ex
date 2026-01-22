@@ -19,14 +19,7 @@ defmodule Database.Worker do
   end
 
   def handle_call({:get, topic_name, key}, _caller_pid, state) do
-    local_topic = get_topic_local(state, topic_name)
-
-    new_state =
-      if local_topic,
-        do: [local_topic | Enum.filter(state, &(&1.topic != topic_name))],
-        else: state
-
-    aggregated_topics = get_topics(new_state, topic_name)
+    aggregated_topics = get_topics(state, topic_name)
 
     sorted_topics =
       aggregated_topics
@@ -57,7 +50,7 @@ defmodule Database.Worker do
       |> List.first()
       |> Topic.get_entry(key)
 
-    {:reply, entry, new_state}
+    {:reply, entry, sorted_topics}
   end
 
   def handle_call({:get_local, topic_name, key}, _caller_pid, state) do
@@ -201,10 +194,9 @@ defmodule Database.Worker do
     topics =
       Node.list()
       |> Enum.map(fn node ->
-        IO.inspect(node)
-
         case Database.Database.get_workers_with_topic(node, topic) do
           [] ->
+            # TODO not nil
             nil
 
           workers ->

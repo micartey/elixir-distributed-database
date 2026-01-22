@@ -70,6 +70,9 @@ defmodule Database.Database do
       _ ->
         false
     end)
+
+    # TODO: If node is current node and we have no worker with the topic loaded, we need to spawn a new
+    #  loader and try to load from disk / spawn if we see that we have it on disk
   end
 
   def delete_topic(topic_name) do
