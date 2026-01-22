@@ -2,8 +2,12 @@ defmodule Utilities.Serialize do
   def store_object(file_path, object) do
     json_string = Poison.encode!(object)
 
-    if System.get_env("EDDB_IN_MEMORY") do
-      File.write!(file_path, json_string)
+    case System.get_env("EDDB_IN_MEMORY") do
+      nil ->
+        File.write!(file_path, json_string)
+
+      _ ->
+        nil
     end
   end
 
