@@ -53,26 +53,40 @@ defmodule Database.Database do
   end
 
   def get_workers_with_topic(node, topic_name) do
-    1..@pool_size
-    |> Enum.map(fn index ->
-      :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
-    end)
-    |> Enum.filter(fn
-      pid when is_pid(pid) ->
-        case :rpc.call(node, GenServer, :call, [pid, {:get_state}]) do
-          state when is_list(state) ->
-            Enum.any?(state, fn t -> t.topic == topic_name end)
+    workers =
+      1..(@pool_size + 1)
+      |> Enum.map(fn index ->
+        :rpc.call(node, Process, :whereis, [:"db_worker_#{index}"])
+      end)
+      |> Enum.filter(fn
+        pid when is_pid(pid) ->
+          case :rpc.call(node, GenServer, :call, [pid, {:get_state}]) do
+            state when is_list(state) ->
+              Enum.any?(state, fn t -> t.topic == topic_name end)
 
-          _ ->
-            false
-        end
+            _ ->
+              false
+          end
 
-      _ ->
-        false
-    end)
+        _ ->
+          false
+      end)
 
-    # TODO: If node is current node and we have no worker with the topic loaded, we need to spawn a new
-    #  loader and try to load from disk / spawn if we see that we have it on disk
+    if workers == [] and node == node() and File.exists?("topic_" <> topic_name <> ".json") do
+      index = @pool_size + 1
+      name = :"db_worker_#{index}"
+
+      if pid = Process.whereis(name) do
+        GenServer.stop(pid)
+      end
+
+      {:ok, pid} = GenServer.start_link(Worker, [], name: name)
+
+      GenServer.call(pid, {:sync, topic_name})
+      [pid]
+    else
+      workers
+    end
   end
 
   def delete_topic(topic_name) do
